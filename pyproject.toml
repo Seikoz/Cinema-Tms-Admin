@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cinema-tms-admin"
+dynamic = ["version"]
+description = "Offline Cinema TMS license authority manager"
+requires-python = ">=3.11"
+dependencies = [
+    "bcrypt==5.0.0",
+    "cryptography>=44,<46",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["automated_tests"]
+
+[tool.setuptools]
+packages = ["license_admin"]
+
+[tool.setuptools.dynamic]
+version = {attr = "license_admin.version.__version__"}

@@ -1,0 +1,32 @@
+# Runtime and local environments
+/.python/
+/.venv/
+/venv/
+__pycache__/
+*.py[cod]
+
+# License authority data and secrets
+/data/
+*.db
+*.db-shm
+*.db-wal
+*.pem
+*.key
+*.pfx
+*.p12
+.env
+.env.*
+
+# Generated packages and local output
+/dist/
+/offline/
+*.log
+*.tmp
+
+# IDE, OS, and sync metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+.SynologyWorkingDirectory/
