@@ -108,3 +108,8 @@ git pull --ff-only origin main
 - 기존 만료일을 연장할 때 `license_admin.core.extended_license_expiry()`를 사용해 `date.max` 범위를 넘지 않도록 합니다.
 - `9999-12-31` 라이선스는 갱신 입력값에서도 그대로 유지합니다.
 - 하드웨어 키 자동 조회 로직에서 직접 `timedelta(days=365)`를 더하지 마세요.
+# 1.4.0 Beta 3 인수인계
+
+- 발급 이력 Treeview에는 `hardware` 열과 가로·세로 스크롤이 있으며 ID 열은 축소되지 않는 최소 너비를 사용합니다.
+- `WindowsImeEntry`의 네이티브 HFONT는 Tk `TkTextFont`의 실제 family, size, weight, slant에서 계산합니다.
+- DB에는 시간을 UTC로 계속 저장하고 GUI 표시는 `local_datetime()`에서 고정 UTC+9로 변환합니다.

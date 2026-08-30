@@ -8,7 +8,7 @@ import subprocess
 import sys
 import tkinter as tk
 import traceback
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 from tkinter import font as tkfont
@@ -27,6 +27,7 @@ ACTION_LABELS = {"issue": "신규 발급", "renewal": "갱신"}
 LICENSE_STATUS_LABELS = {"active": "활성", "renewed": "갱신됨", "revoked": "폐기"}
 ERROR_LOG_PATH = PROJECT_ROOT / "data" / "admin-error.log"
 UPDATE_RESULT_PATH = PROJECT_ROOT / "data" / "last-update-result.json"
+KST = timezone(timedelta(hours=9))
 
 
 def report_python_error(exc_type, exc_value, exc_traceback) -> None:
@@ -34,7 +35,7 @@ def report_python_error(exc_type, exc_value, exc_traceback) -> None:
     try:
         ERROR_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with ERROR_LOG_PATH.open("a", encoding="utf-8") as log:
-            log.write(f"\n[{datetime.now().astimezone().isoformat()}]\n{detail}")
+            log.write(f"\n[{datetime.now(KST).isoformat()}]\n{detail}")
     except OSError:
         pass
     try:
@@ -51,7 +52,10 @@ sys.excepthook = report_python_error
 
 def local_datetime(value: str) -> str:
     try:
-        return datetime.fromisoformat(value).astimezone().strftime("%Y-%m-%d %H:%M")
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(KST).strftime("%Y-%m-%d %H:%M")
     except (TypeError, ValueError):
         return value or "-"
 
@@ -173,18 +177,28 @@ class LicenseManager(tk.Tk):
 
         history = ttk.LabelFrame(root, text="발급 이력", padding=10)
         history.pack(fill="both", expand=True)
-        columns = ("id", "customer", "cinema", "limit", "action", "operator", "processed", "expires", "status")
-        self.tree = ttk.Treeview(history, columns=columns, show="headings", selectmode="browse")
+        columns = ("id", "hardware", "customer", "cinema", "limit", "action", "operator", "processed", "expires", "status")
+        table = ttk.Frame(history)
+        table.pack(fill="both", expand=True)
+        self.tree = ttk.Treeview(table, columns=columns, show="headings", selectmode="browse")
         headings = (
-            ("id", "라이선스 ID", 190), ("customer", "고객", 95), ("cinema", "영화관", 95),
+            ("id", "라이선스 ID", 255), ("hardware", "하드웨어 ID", 285),
+            ("customer", "고객", 95), ("cinema", "영화관", 95),
             ("limit", "상영관 한도", 85), ("action", "처리 구분", 75),
             ("operator", "담당자", 95), ("processed", "처리 일시", 145),
             ("expires", "만료일", 90), ("status", "상태", 75),
         )
         for key_name, label, width in headings:
             self.tree.heading(key_name, text=label)
-            self.tree.column(key_name, width=width, anchor="w")
-        self.tree.pack(fill="both", expand=True)
+            self.tree.column(key_name, width=width, minwidth=width, anchor="w", stretch=key_name not in {"id", "hardware"})
+        vertical_scroll = ttk.Scrollbar(table, orient="vertical", command=self.tree.yview)
+        horizontal_scroll = ttk.Scrollbar(table, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=vertical_scroll.set, xscrollcommand=horizontal_scroll.set)
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        vertical_scroll.grid(row=0, column=1, sticky="ns")
+        horizontal_scroll.grid(row=1, column=0, sticky="ew")
+        table.rowconfigure(0, weight=1)
+        table.columnconfigure(0, weight=1)
         actions = ttk.Frame(history)
         actions.pack(fill="x", pady=(10, 0))
         self.renew_button = ttk.Button(actions, text="선택 항목 갱신", command=self.prepare_renewal)
@@ -458,7 +472,7 @@ class LicenseManager(tk.Tk):
         window.geometry("920x500")
         tree = ttk.Treeview(window, columns=("time", "user", "action", "result", "detail", "pc"), show="headings")
         for key, label, width in (
-            ("time", "시간(UTC)", 190), ("user", "계정", 100), ("action", "작업", 130),
+            ("time", "시간(UTC+9)", 190), ("user", "계정", 100), ("action", "작업", 130),
             ("result", "결과", 55), ("detail", "상세", 260), ("pc", "PC", 120),
         ):
             tree.heading(key, text=label)
@@ -466,7 +480,7 @@ class LicenseManager(tk.Tk):
         tree.pack(fill="both", expand=True, padx=12, pady=12)
         for record in self.authority.audit_records():
             tree.insert("", "end", values=(
-                record["created_at"], record["username"], record["action"],
+                local_datetime(record["created_at"]), record["username"], record["action"],
                 "성공" if record["success"] else "실패", record["detail"], record["workstation"],
             ))
 
@@ -588,7 +602,7 @@ class LicenseManager(tk.Tk):
             action = record.get("action") or ("renewal" if record.get("supersedes") else "issue")
             limit = int(record.get("auditorium_limit") or 0)
             self.tree.insert("", "end", iid=record["license_id"], values=(
-                record["license_id"], record["customer"], record["cinema"],
+                record["license_id"], record["hardware_key"], record["customer"], record["cinema"],
                 f"{limit}개" if limit else "기존/무제한", ACTION_LABELS.get(action, action),
                 record.get("operator") or "-", local_datetime(record.get("issued_at", "")),
                 record["expires_on"], record["status"],

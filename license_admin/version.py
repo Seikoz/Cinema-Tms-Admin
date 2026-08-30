@@ -1,3 +1,3 @@
 """Single source of truth for the Cinema TMS Admin version."""
 
-__version__ = "1.4.0b2"
+__version__ = "1.4.0b3"

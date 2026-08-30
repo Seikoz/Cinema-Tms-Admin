@@ -83,6 +83,15 @@ class WindowsImeEntry(tk.Frame):
         self.show = show
         font_name = kwargs.pop("font", "TkTextFont")
         font = tkfont.nametofont(font_name, root=master)
+        actual_font = font.actual()
+        point_size = int(actual_font["size"])
+        pixels_per_point = float(master.winfo_fpixels("1p")) if master is not None else 96 / 72
+        self._native_font_height = (
+            -max(1, round(point_size * pixels_per_point)) if point_size > 0 else point_size
+        )
+        self._native_font_family = str(actual_font["family"])
+        self._native_font_weight = 700 if actual_font["weight"] == "bold" else 400
+        self._native_font_italic = 1 if actual_font["slant"] == "italic" else 0
         requested_width = max(40, font.measure("0") * self.character_width + 14)
         requested_height = max(24, font.metrics("linespace") + 10)
         super().__init__(
@@ -140,7 +149,10 @@ class WindowsImeEntry(tk.Frame):
             raise ctypes.WinError(ctypes.get_last_error())
         self._editor = int(editor)
         self._font_handle = int(
-            gdi32.CreateFontW(-15, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, "Malgun Gothic") or 0
+            gdi32.CreateFontW(
+                self._native_font_height, 0, 0, 0, self._native_font_weight,
+                self._native_font_italic, 0, 0, 1, 0, 0, 5, 0, self._native_font_family,
+            ) or 0
         )
         if self._font_handle:
             user32.SendMessageW(editor, WM_SETFONT, self._font_handle, 1)

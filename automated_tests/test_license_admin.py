@@ -1,5 +1,6 @@
 import hashlib
 import json
+import runpy
 import tempfile
 import unittest
 from datetime import date, timedelta
@@ -21,7 +22,7 @@ from license_admin.version import __version__
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.4.0b2")
+        self.assertEqual(__version__, "1.4.0b3")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -107,6 +108,28 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
             extended_license_expiry(date(2027, 8, 30), date(2026, 8, 30)),
             date(2028, 8, 29),
         )
+
+    def test_admin_times_are_displayed_in_utc_plus_nine(self):
+        manager = runpy.run_path(
+            str(Path(__file__).parents[1] / "license_admin" / "manager.pyw"),
+            run_name="license_admin.manager_test",
+        )
+        self.assertEqual(manager["local_datetime"]("2026-08-30T00:15:00+00:00"), "2026-08-30 09:15")
+        source = (Path(__file__).parents[1] / "license_admin" / "manager.pyw").read_text(encoding="utf-8")
+        self.assertIn('("time", "시간(UTC+9)", 190)', source)
+        self.assertIn('local_datetime(record["created_at"])', source)
+
+    def test_license_history_shows_full_hardware_id_with_scrolling(self):
+        source = (Path(__file__).parents[1] / "license_admin" / "manager.pyw").read_text(encoding="utf-8")
+        self.assertIn('("hardware", "하드웨어 ID", 285)', source)
+        self.assertIn('record["license_id"], record["hardware_key"]', source)
+        self.assertIn('orient="horizontal", command=self.tree.xview', source)
+
+    def test_native_entry_uses_tk_font_metrics(self):
+        source = (Path(__file__).parents[1] / "license_admin" / "windows_ime.py").read_text(encoding="utf-8")
+        self.assertIn('actual_font = font.actual()', source)
+        self.assertIn('self._native_font_height', source)
+        self.assertNotIn('CreateFontW(-15', source)
 
     def test_offline_update_support_is_independent_and_preserves_data(self):
         root = Path(__file__).parents[1]
