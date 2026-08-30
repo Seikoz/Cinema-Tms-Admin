@@ -14,10 +14,12 @@ from license_admin.version import __version__
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.3.0b5")
+        self.assertEqual(__version__, "1.3.0b6")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
-        source = (Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs").read_text(encoding="utf-8-sig")
+        path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
+        self.assertTrue(path.read_bytes().startswith(b"\xff\xfe"))
+        source = path.read_text(encoding="utf-16")
         self.assertIn(r'\.python\pythonw.exe', source)
         self.assertIn(r'\.venv\Scripts\pythonw.exe', source)
         self.assertIn("shell.Run(command, 1, True)", source)
@@ -81,7 +83,9 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
             "deployment/Cinema-TMS-Admin.cmd",
             "deployment/build-admin-package.ps1",
         ):
-            source = (root / relative).read_text(encoding="utf-8-sig")
+            path = root / relative
+            encoding = "utf-16" if path.suffix.lower() == ".vbs" else "utf-8-sig"
+            source = path.read_text(encoding=encoding)
             self.assertNotIn("Cinema_Tms\\.python", source)
 
     def make_legacy_authority(self, root: Path, username: str = "admin", password: str = "secret"):

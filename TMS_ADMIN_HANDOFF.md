@@ -87,3 +87,8 @@ git pull --ff-only origin main
 - `1.3.0b4`의 ctypes Win32 창 프로시저 콜백은 Windows 종료 코드 `0xC0000409`를 일으켜 제거했습니다.
 - `WindowsImeEntry`는 네이티브 `EDIT` 컨트롤을 유지하되, 입력값을 Tk `after(30, ...)` 이벤트 루프에서 동기화합니다.
 - 향후에도 Python ctypes 콜백으로 네이티브 입력창의 `WNDPROC`를 교체하지 마세요.
+# 1.3.0 Beta 6 인수인계
+
+- `deployment/Cinema-TMS-Admin.vbs`는 Windows Script Host의 한글 호환성을 위해 UTF-16 LE BOM으로 유지해야 합니다.
+- VBS를 수정한 뒤 UTF-8로 저장하면 오류 메시지가 다시 깨질 수 있으므로 테스트에서 BOM을 확인합니다.
+- `1.3.0b5`의 네이티브 입력창 안정화 수정이 포함되어 있습니다.

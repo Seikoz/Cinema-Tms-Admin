@@ -1,4 +1,10 @@
-# Cinema TMS Admin 1.3.0 Beta 5
+# Cinema TMS Admin 1.3.0 Beta 6
+
+## VBS 한글 오류 메시지 수정
+
+- VBS 오류 메시지가 깨져 보이지 않도록 실행기 파일을 Windows Script Host용 UTF-16 LE BOM 형식으로 변경했습니다.
+- `1.3.0b5`의 `0xC0000409` 강제 종료 수정도 포함합니다.
+- Windows 실행기 호환성 수정이므로 `PATCH`로 판단해 `1.3.0b6`로 올렸습니다.
 
 ## 네이티브 입력창 강제 종료 수정
 
