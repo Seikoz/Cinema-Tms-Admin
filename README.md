@@ -1,4 +1,10 @@
-# Cinema TMS Admin 1.3.0 Beta 1
+# Cinema TMS Admin 1.3.0 Beta 2
+
+## VBS 한글 IME 입력 수정
+
+- VBS 실행기가 숨겨진 콘솔용 `python.exe` 대신 GUI용 `pythonw.exe`를 정상 창 상태로 실행하도록 CMD 실행 방식과 통일했습니다.
+- Windows 기본 UI 글꼴을 `맑은 고딕`으로 지정해 한글 조합 중 글리프와 입력 커서가 안정적으로 표시되도록 했습니다.
+- 기존 기능의 Windows 입력 호환성 수정이므로 `PATCH`로 판단해 `1.3.0b2`로 올렸습니다.
 
 ## GitHub 소스 관리
 

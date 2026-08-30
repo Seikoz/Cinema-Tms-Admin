@@ -11,6 +11,7 @@ import traceback
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
+from tkinter import font as tkfont
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -51,6 +52,17 @@ def local_datetime(value: str) -> str:
         return datetime.fromisoformat(value).astimezone().strftime("%Y-%m-%d %H:%M")
     except (TypeError, ValueError):
         return value or "-"
+
+
+def configure_windows_korean_text(root: tk.Misc) -> None:
+    """Use a Unicode Korean UI font while leaving composition to Windows IME."""
+    if os.name != "nt":
+        return
+    for name in ("TkDefaultFont", "TkTextFont", "TkFixedFont", "TkMenuFont", "TkHeadingFont", "TkCaptionFont"):
+        try:
+            tkfont.nametofont(name, root=root).configure(family="Malgun Gothic")
+        except tk.TclError:
+            continue
 
 
 class FormDialog(simpledialog.Dialog):
@@ -107,6 +119,7 @@ class LicenseManager(tk.Tk):
         report_python_error(exc_type, exc_value, exc_traceback)
 
     def _build(self):
+        configure_windows_korean_text(self)
         style = ttk.Style(self)
         style.configure("Treeview", rowheight=27)
         root = ttk.Frame(self, padding=18)

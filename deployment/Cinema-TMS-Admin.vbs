@@ -5,8 +5,8 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 Set shell = CreateObject("WScript.Shell")
 deploymentFolder = fso.GetParentFolderName(WScript.ScriptFullName)
 projectFolder = fso.GetParentFolderName(deploymentFolder)
-pythonPath = projectFolder & "\.python\python.exe"
-If Not fso.FileExists(pythonPath) Then pythonPath = projectFolder & "\.venv\Scripts\python.exe"
+pythonPath = projectFolder & "\.python\pythonw.exe"
+If Not fso.FileExists(pythonPath) Then pythonPath = projectFolder & "\.venv\Scripts\pythonw.exe"
 scriptPath = projectFolder & "\license_admin\manager.pyw"
 If Not fso.FileExists(pythonPath) Then
     MsgBox "Cinema TMS Admin 전용 Python 실행 파일을 찾을 수 없습니다." & vbCrLf & pythonPath & vbCrLf & "최신 관리자 ZIP을 완전히 압축 해제하세요.", vbCritical, "Cinema TMS License Manager"
@@ -18,5 +18,7 @@ If Not fso.FileExists(scriptPath) Then
 End If
 shell.CurrentDirectory = projectFolder
 command = Chr(34) & pythonPath & Chr(34) & " " & Chr(34) & scriptPath & Chr(34)
-exitCode = shell.Run(command, 0, True)
+' Use the GUI subsystem and a normal window startup state. Hiding console
+' python.exe with SW_HIDE interferes with the Windows Korean IME focus context.
+exitCode = shell.Run(command, 1, True)
 If exitCode <> 0 Then MsgBox "라이선스 관리 프로그램 실행에 실패했습니다. 종료 코드: " & exitCode, vbCritical, "Cinema TMS License Manager"
