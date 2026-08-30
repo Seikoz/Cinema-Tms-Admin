@@ -22,7 +22,7 @@ from license_admin.version import __version__
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.4.0b3")
+        self.assertEqual(__version__, "1.4.0b4")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -141,6 +141,12 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         self.assertIn("BaselineManifestPath", build_source)
         self.assertIn("def install_update", manager_source)
         self.assertIn("관리자 계정, 발급키, 라이선스 이력 DB는 그대로 유지", manager_source)
+
+    def test_online_update_is_preserved_as_a_disabled_preparing_button(self):
+        source = (Path(__file__).parents[1] / "license_admin" / "manager.pyw").read_text(encoding="utf-8")
+        self.assertIn('text="온라인 업데이트 (준비 중)", state="disabled"', source)
+        self.assertIn('text="파일 업데이트", command=self.install_update', source)
+        self.assertIn('self.online_update_button.configure(state="disabled")', source)
 
     def test_default_database_is_inside_admin_project(self):
         from license_admin.core import DEFAULT_DATA_DIR

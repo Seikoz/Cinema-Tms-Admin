@@ -136,7 +136,9 @@ class LicenseManager(tk.Tk):
         ttk.Label(authority, text="발급 권한은 암호화된 관리자 DB와 로그인 계정으로 관리됩니다.").pack(side="left")
         self.logout_button = ttk.Button(authority, text="로그아웃", command=self.logout)
         self.logout_button.pack(side="right")
-        self.update_button = ttk.Button(authority, text="프로그램 업데이트", command=self.install_update)
+        self.online_update_button = ttk.Button(authority, text="온라인 업데이트 (준비 중)", state="disabled")
+        self.online_update_button.pack(side="right", padx=6)
+        self.update_button = ttk.Button(authority, text="파일 업데이트", command=self.install_update)
         self.update_button.pack(side="right", padx=6)
         self.password_button = ttk.Button(authority, text="비밀번호 변경", command=self.change_password)
         self.password_button.pack(side="right", padx=6)
@@ -380,6 +382,7 @@ class LicenseManager(tk.Tk):
         self.accounts_button.configure(state="normal" if role == "admin" else "disabled")
         self.audit_button.configure(state="normal" if role == "admin" else "disabled")
         self.update_button.configure(state="normal" if role == "admin" else "disabled")
+        self.online_update_button.configure(state="disabled")
 
     def change_password(self):
         dialog = FormDialog(

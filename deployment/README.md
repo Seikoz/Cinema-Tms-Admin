@@ -31,4 +31,4 @@
 
 ## 오프라인 프로그램 업데이트
 
-관리자 계정으로 로그인한 뒤 상단 `프로그램 업데이트` 버튼에서 `Cinema-TMS-Admin-Update-*.zip`을 선택합니다. `data\licenses.db`, 계정, 발급키와 이력은 유지되며 프로그램 파일만 교체됩니다. 변경 전 파일은 `data\update-backups`에 백업되고 실패 시 자동 복원됩니다.
+관리자 계정으로 로그인한 뒤 상단 `파일 업데이트` 버튼에서 `Cinema-TMS-Admin-Update-*.zip`을 선택합니다. `온라인 업데이트 (준비 중)` 버튼은 향후 GitHub 배포 연결 전까지 비활성화됩니다. `data\licenses.db`, 계정, 발급키와 이력은 유지되며 프로그램 파일만 교체됩니다. 변경 전 파일은 `data\update-backups`에 백업되고 실패 시 자동 복원됩니다.

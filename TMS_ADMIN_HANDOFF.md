@@ -1,7 +1,7 @@
 # Cinema TMS Admin — 작업 인수인계
 
 최종 갱신: 2026-08-30
-기준 소스: **v1.3.0 Beta 3**
+기준 소스: **v1.4.0 Beta 4**
 실제 작업 경로: `D:\Codex\Cinema_Tms_Admin`
 
 ## GitHub 기준 소스
@@ -42,7 +42,9 @@ git pull --ff-only origin main
 
 ## 프로그램 업데이트
 
-- 관리자 계정만 상단 `프로그램 업데이트` 버튼을 사용할 수 있습니다.
+- 관리자 계정만 상단 `파일 업데이트` 버튼을 사용할 수 있습니다.
+- `온라인 업데이트 (준비 중)` 버튼은 비활성화 상태로 두며 향후 GitHub 배포 연결 시 사용합니다.
+- 온라인 업데이트 기능을 제거한 것이 아니며 사용자에게 아직 사용할 수 없는 상태임을 명확히 표시합니다.
 - 업데이트 패키지 빌더는 `deployment\build-update-package.ps1`, 적용기는 `deployment\apply-update.ps1`입니다.
 - 기준 파일 목록 없이 만들면 전체 프로그램 업데이트, `-BaselineManifestPath`를 지정하면 변경 파일만 포함하는 증분 업데이트가 생성됩니다.
 - 업데이트 대상은 `license_admin`, `deployment`, `docs`와 프로그램 루트 문서로 제한됩니다.
