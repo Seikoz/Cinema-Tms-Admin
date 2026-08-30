@@ -24,6 +24,7 @@ from license_admin.windows_ime import WindowsImeEntry
 
 ROLE_LABELS = {"admin": "관리자", "operator": "발급 담당자", "viewer": "조회 전용"}
 ACTION_LABELS = {"issue": "신규 발급", "renewal": "갱신"}
+LICENSE_STATUS_LABELS = {"active": "활성", "renewed": "갱신됨", "revoked": "폐기"}
 ERROR_LOG_PATH = PROJECT_ROOT / "data" / "admin-error.log"
 UPDATE_RESULT_PATH = PROJECT_ROOT / "data" / "last-update-result.json"
 
@@ -479,23 +480,16 @@ class LicenseManager(tk.Tk):
             self.hardware_key.set(request["hardware_key"])
             if request.get("request_type") == "hardware_rebind":
                 previous_key = request["previous_hardware_key"]
-                previous = next(
-                    (record for record in self.authority.records()
-                     if record["hardware_key"] == previous_key and record["status"] == "active"),
-                    None,
-                )
+                previous = self.authority.latest_license_for_hardware_key(previous_key, active_only=True)
                 if not previous:
                     raise ValueError("장비 변경 요청의 이전 하드웨어 키와 일치하는 활성 라이선스 이력이 없습니다.")
-                self.customer.set(previous["customer"])
-                self.cinema.set(previous["cinema"])
-                self.valid_from.set(date.today().isoformat())
-                previous_expiry = date.fromisoformat(previous["expires_on"])
-                self.expires_on.set(max(previous_expiry, date.today() + timedelta(days=1)).isoformat())
-                self.auditorium_limit.set(str(max(1, int(previous.get("auditorium_limit") or 1))))
-                self.rebind_supersedes = previous["license_id"]
-                self.hardware_source.set(f"장비 변경 요청 · 기존 라이선스 {previous['license_id']}")
+                self._load_previous_license(previous, hardware_rebind=True)
             else:
-                self.hardware_source.set(Path(source).name)
+                previous = self.authority.latest_license_for_hardware_key(request["hardware_key"])
+                if previous:
+                    self._load_previous_license(previous)
+                else:
+                    self.hardware_source.set(f"신규 장비 · {Path(source).name}")
             self.request_loaded = True
         except Exception as exc:
             self.hardware_key.set("")
@@ -504,6 +498,26 @@ class LicenseManager(tk.Tk):
             self.rebind_supersedes = ""
             messagebox.showerror("라이선스 관리", str(exc), parent=self)
         self._refresh_permissions()
+
+    def _load_previous_license(self, record: dict, *, hardware_rebind: bool = False):
+        self.customer.set(record["customer"])
+        self.cinema.set(record["cinema"])
+        self.valid_from.set(date.today().isoformat())
+        previous_expiry = date.fromisoformat(record["expires_on"])
+        if hardware_rebind:
+            next_expiry = max(previous_expiry, date.today() + timedelta(days=1))
+        else:
+            next_expiry = max(previous_expiry, date.today()) + timedelta(days=365)
+        self.expires_on.set(next_expiry.isoformat())
+        self.auditorium_limit.set(str(max(1, int(record.get("auditorium_limit") or 1))))
+        if record["status"] == "active":
+            self.rebind_supersedes = record["license_id"]
+        status = LICENSE_STATUS_LABELS.get(record["status"], record["status"])
+        prefix = "장비 변경 요청" if hardware_rebind else "기존 사용 이력"
+        operator = record.get("operator") or "-"
+        self.hardware_source.set(
+            f"{prefix} · {status} · {record['valid_from']}~{record['expires_on']} · 담당 {operator}"
+        )
 
     def issue(self, supersedes: str = ""):
         user = self.authority.current_user

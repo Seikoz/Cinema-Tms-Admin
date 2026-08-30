@@ -2,6 +2,7 @@ import hashlib
 import json
 import tempfile
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -14,7 +15,7 @@ from license_admin.version import __version__
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.3.0b7")
+        self.assertEqual(__version__, "1.4.0b1")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -61,6 +62,38 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
             loaded = read_hardware_request(path)
         self.assertEqual(loaded["request_type"], "hardware_rebind")
         self.assertEqual(loaded["previous_hardware_key"], request["previous_hardware_key"])
+
+    def test_latest_license_is_loaded_by_hardware_key(self):
+        hardware_key = "3333-3333-3333-3333-3333-3333-3333-3333"
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            public_pem = self.make_legacy_authority(root)
+            with patch("license_admin.core.TRUSTED_PUBLIC_KEY_PEM", public_pem):
+                authority = LicenseAuthority(root)
+                authority.authenticate("admin", "secret")
+                first = authority.issue(
+                    customer="첫 고객", cinema="첫 영화관", hardware_key=hardware_key,
+                    valid_from=date.today(), expires_on=date.today() + timedelta(days=100),
+                    auditorium_limit=2, destination=root / "first.tmslic",
+                )
+                second = authority.issue(
+                    customer="최신 고객", cinema="최신 영화관", hardware_key=hardware_key,
+                    valid_from=date.today(), expires_on=date.today() + timedelta(days=365),
+                    auditorium_limit=5, destination=root / "second.tmslic",
+                    supersedes=first["payload"]["license_id"],
+                )
+                latest = authority.latest_license_for_hardware_key(hardware_key)
+                active = authority.latest_license_for_hardware_key(hardware_key, active_only=True)
+        self.assertEqual(latest["license_id"], second["payload"]["license_id"])
+        self.assertEqual(active["customer"], "최신 고객")
+        self.assertEqual(active["auditorium_limit"], 5)
+
+    def test_hardware_file_load_prefills_existing_license(self):
+        source = (Path(__file__).parents[1] / "license_admin" / "manager.pyw").read_text(encoding="utf-8")
+        self.assertIn('latest_license_for_hardware_key(request["hardware_key"])', source)
+        self.assertIn("def _load_previous_license(self, record: dict", source)
+        self.assertIn("기존 사용 이력", source)
+        self.assertIn('self.rebind_supersedes = record["license_id"]', source)
 
     def test_offline_update_support_is_independent_and_preserves_data(self):
         root = Path(__file__).parents[1]

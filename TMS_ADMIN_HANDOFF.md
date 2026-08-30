@@ -97,3 +97,9 @@ git pull --ff-only origin main
 - `WindowsImeEntry`의 Tab/Shift+Tab 포커스 이동은 `GetAsyncKeyState`를 Tk 이벤트 루프에서 확인해 처리합니다.
 - 한 번의 Tab이 여러 네이티브 입력창에서 중복 처리되지 않도록 클래스 공유 `_tab_key_consumed` 상태를 유지합니다.
 - `WNDPROC` 교체나 ctypes 콜백 방식으로 되돌리지 마세요.
+# 1.4.0 Beta 1 인수인계
+
+- 일반 `.tmshw`를 불러올 때 `LicenseAuthority.latest_license_for_hardware_key()`로 동일 하드웨어 키의 최신 발급 이력을 조회합니다.
+- 기존 정보가 있으면 고객명, 영화관명, 상영관 한도를 채우고 이전 기간·상태·담당자를 표시합니다.
+- 최신 이력이 `active`인 경우에만 `rebind_supersedes`에 라이선스 ID를 넣어 갱신으로 연결합니다.
+- `revoked` 등 비활성 이력은 참고 정보만 불러오고 신규 발급으로 처리합니다.

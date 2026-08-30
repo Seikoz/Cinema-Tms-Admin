@@ -555,3 +555,19 @@ class LicenseAuthority:
             db.row_factory = sqlite3.Row
             rows = db.execute("SELECT * FROM licenses ORDER BY issued_at DESC, rowid DESC").fetchall()
         return [{**dict(row), "hardware_key": row["machine_code"]} for row in rows]
+
+    def latest_license_for_hardware_key(self, hardware_key: str, *, active_only: bool = False) -> dict | None:
+        """Return the newest locally issued license for a normalized TMS key."""
+        if not self._current_user:
+            return None
+        hardware_key = normalize_hardware_key(hardware_key)
+        status_clause = " AND status='active'" if active_only else ""
+        with closing(self._connect()) as db:
+            db.row_factory = sqlite3.Row
+            row = db.execute(
+                f"""SELECT * FROM licenses
+                    WHERE machine_code=?{status_clause}
+                    ORDER BY issued_at DESC, rowid DESC LIMIT 1""",
+                (hardware_key,),
+            ).fetchone()
+        return {**dict(row), "hardware_key": row["machine_code"]} if row is not None else None
