@@ -76,3 +76,9 @@ git pull --ff-only origin main
 - 고객명·영화관명·날짜와 `FormDialog` 기반 로그인/계정 입력창에 적용하며 읽기 전용 하드웨어 키 필드는 기존 ttk 위젯을 유지한다.
 - 별도의 `KeyPress`, `KeyRelease`, `validatecommand`를 연결하지 않아 조합 중 문자열을 Python 코드가 변경하지 않는다.
 - 같은 호환성 오류의 추가 수정이므로 `PATCH`로 분류해 `1.3.0b3`로 올렸다.
+# 1.3.0 Beta 4 인수인계
+
+- Windows에서 편집 가능한 입력창은 `license_admin/windows_ime.py`의 네이티브 `EDIT` 컨트롤을 사용합니다.
+- 목적은 한글 조합 글자가 Tk 보조 창에 따로 표시되는 현상을 없애고 Windows IME의 인라인 조합을 사용하는 것입니다.
+- `WindowsImeEntry`는 기존 `StringVar`와 양방향 동기화되며, 로그인·계정 관리 모달에서도 같은 컨트롤을 사용합니다.
+- 네이티브 입력 컨트롤 변경은 DB 스키마, 발급키 및 라이선스 파일 형식에 영향을 주지 않습니다.

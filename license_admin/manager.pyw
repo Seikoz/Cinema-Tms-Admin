@@ -19,6 +19,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from license_admin.version import __version__ as APP_VERSION
 from license_admin.core import LegacyKeyMigrationRequired, LicenseAuthority, read_hardware_request
+from license_admin.windows_ime import WindowsImeEntry
 
 
 ROLE_LABELS = {"admin": "관리자", "operator": "발급 담당자", "viewer": "조회 전용"}
@@ -65,20 +66,6 @@ def configure_windows_korean_text(root: tk.Misc) -> None:
             continue
 
 
-class KoreanImeEntry(tk.Entry):
-    """Classic Tk entry whose Windows IME composition is not intercepted by ttk."""
-
-    def __init__(self, master=None, **kwargs):
-        kwargs.setdefault("font", "TkTextFont")
-        kwargs.setdefault("relief", "solid")
-        kwargs.setdefault("borderwidth", 1)
-        kwargs.setdefault("highlightthickness", 1)
-        kwargs.setdefault("highlightcolor", "#0078d4")
-        kwargs.setdefault("highlightbackground", "#a7a7a7")
-        kwargs.setdefault("insertwidth", 2)
-        super().__init__(master, **kwargs)
-
-
 class FormDialog(simpledialog.Dialog):
     def __init__(self, parent, title, fields, *, note=""):
         self.fields = fields
@@ -96,7 +83,7 @@ class FormDialog(simpledialog.Dialog):
         start = 1 if self.note else 0
         for offset, (key, label, secret, _default) in enumerate(self.fields):
             ttk.Label(master, text=label).grid(row=start + offset, column=0, sticky="w", padx=(0, 12), pady=5)
-            entry = KoreanImeEntry(master, textvariable=self.variables[key], width=34, show="●" if secret else "")
+            entry = WindowsImeEntry(master, textvariable=self.variables[key], width=34, show="●" if secret else "")
             entry.grid(row=start + offset, column=1, sticky="ew", pady=5)
             if first is None:
                 first = entry
@@ -160,13 +147,13 @@ class LicenseManager(tk.Tk):
         ttk.Label(issue, text="영화관명").grid(row=0, column=1, sticky="w", padx=(0, 12))
         ttk.Label(issue, text="사용 기간").grid(row=0, column=2, sticky="w")
         ttk.Label(issue, text="허용 상영관 수").grid(row=0, column=3, sticky="w", padx=(12, 0))
-        KoreanImeEntry(issue, textvariable=self.customer, width=26).grid(row=1, column=0, sticky="ew", padx=(0, 12), pady=(3, 10))
-        KoreanImeEntry(issue, textvariable=self.cinema, width=26).grid(row=1, column=1, sticky="ew", padx=(0, 12), pady=(3, 10))
+        WindowsImeEntry(issue, textvariable=self.customer, width=26).grid(row=1, column=0, sticky="ew", padx=(0, 12), pady=(3, 10))
+        WindowsImeEntry(issue, textvariable=self.cinema, width=26).grid(row=1, column=1, sticky="ew", padx=(0, 12), pady=(3, 10))
         dates = ttk.Frame(issue)
         dates.grid(row=1, column=2, sticky="ew", pady=(3, 10))
-        KoreanImeEntry(dates, textvariable=self.valid_from, width=12).pack(side="left")
+        WindowsImeEntry(dates, textvariable=self.valid_from, width=12).pack(side="left")
         ttk.Label(dates, text=" ~ ").pack(side="left")
-        KoreanImeEntry(dates, textvariable=self.expires_on, width=12).pack(side="left")
+        WindowsImeEntry(dates, textvariable=self.expires_on, width=12).pack(side="left")
         ttk.Spinbox(issue, textvariable=self.auditorium_limit, from_=1, to=9999, width=12).grid(
             row=1, column=3, sticky="ew", padx=(12, 0), pady=(3, 10)
         )
