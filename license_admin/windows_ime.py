@@ -14,31 +14,15 @@ if os.name == "nt":
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
 
-    GWLP_WNDPROC = -4
     WS_CHILD = 0x40000000
     WS_VISIBLE = 0x10000000
     WS_TABSTOP = 0x00010000
     ES_AUTOHSCROLL = 0x0080
     ES_PASSWORD = 0x0020
     WS_EX_CLIENTEDGE = 0x00000200
-    WM_KEYDOWN = 0x0100
-    WM_CHAR = 0x0102
-    WM_KILLFOCUS = 0x0008
-    WM_IME_ENDCOMPOSITION = 0x010E
-    WM_IME_COMPOSITION = 0x010F
-    WM_CUT = 0x0300
-    WM_COPY = 0x0301
-    WM_PASTE = 0x0302
-    WM_CLEAR = 0x0303
-    WM_UNDO = 0x0304
     WM_SETFONT = 0x0030
     EM_SETPASSWORDCHAR = 0x00CC
-    VK_TAB = 0x09
-    VK_RETURN = 0x0D
-    VK_ESCAPE = 0x1B
-    VK_SHIFT = 0x10
     LRESULT = ctypes.c_ssize_t
-    WNDPROC = ctypes.WINFUNCTYPE(LRESULT, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
 
     user32.CreateWindowExW.argtypes = (
         wintypes.DWORD,
@@ -57,6 +41,8 @@ if os.name == "nt":
     user32.CreateWindowExW.restype = wintypes.HWND
     user32.DestroyWindow.argtypes = (wintypes.HWND,)
     user32.DestroyWindow.restype = wintypes.BOOL
+    user32.IsWindow.argtypes = (wintypes.HWND,)
+    user32.IsWindow.restype = wintypes.BOOL
     user32.MoveWindow.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wintypes.BOOL)
     user32.MoveWindow.restype = wintypes.BOOL
     user32.SetFocus.argtypes = (wintypes.HWND,)
@@ -69,12 +55,6 @@ if os.name == "nt":
     user32.SetWindowTextW.restype = wintypes.BOOL
     user32.SendMessageW.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
     user32.SendMessageW.restype = LRESULT
-    user32.GetKeyState.argtypes = (ctypes.c_int,)
-    user32.GetKeyState.restype = ctypes.c_short
-    user32.CallWindowProcW.argtypes = (ctypes.c_void_p, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
-    user32.CallWindowProcW.restype = LRESULT
-    user32.SetWindowLongPtrW.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_void_p)
-    user32.SetWindowLongPtrW.restype = ctypes.c_void_p
     gdi32.CreateFontW.restype = wintypes.HFONT
     gdi32.DeleteObject.argtypes = (wintypes.HGDIOBJ,)
     gdi32.DeleteObject.restype = wintypes.BOOL
@@ -113,8 +93,7 @@ class WindowsImeEntry(tk.Frame):
         self.grid_propagate(False)
         self._editor = 0
         self._font_handle = 0
-        self._original_proc = 0
-        self._window_proc = None
+        self._poll_after_id = None
         self._syncing = False
         self._fallback = None
         self._trace_id = self.variable.trace_add("write", self._sync_to_editor)
@@ -159,45 +138,16 @@ class WindowsImeEntry(tk.Frame):
             user32.SendMessageW(editor, WM_SETFONT, self._font_handle, 1)
         if self.show:
             user32.SendMessageW(editor, EM_SETPASSWORDCHAR, ord("●"), 0)
-        self._window_proc = WNDPROC(self._dispatch_native_message)
-        original = user32.SetWindowLongPtrW(editor, GWLP_WNDPROC, ctypes.cast(self._window_proc, ctypes.c_void_p))
-        if not original:
-            error = ctypes.get_last_error()
-            if error:
-                raise ctypes.WinError(error)
-        self._original_proc = int(original)
         self._resize_editor()
+        self._poll_editor()
 
-    def _dispatch_native_message(self, hwnd, message, wparam, lparam):
-        if message == WM_KEYDOWN:
-            if wparam == VK_TAB:
-                self._sync_from_editor()
-                reverse = bool(user32.GetKeyState(VK_SHIFT) & 0x8000)
-                self.after_idle(lambda: self._focus_relative(reverse))
-                return 0
-            if wparam in (VK_RETURN, VK_ESCAPE):
-                self._sync_from_editor()
-                sequence = "<Return>" if wparam == VK_RETURN else "<Escape>"
-                self.after_idle(lambda: self.winfo_toplevel().event_generate(sequence))
-                return 0
-        result = user32.CallWindowProcW(self._original_proc, hwnd, message, wparam, lparam)
-        if message in (
-            WM_CHAR,
-            WM_KILLFOCUS,
-            WM_IME_ENDCOMPOSITION,
-            WM_IME_COMPOSITION,
-            WM_CUT,
-            WM_PASTE,
-            WM_CLEAR,
-            WM_UNDO,
-        ):
-            self._sync_from_editor()
-        return result
-
-    def _focus_relative(self, reverse=False):
-        target = self.tk_focusPrev() if reverse else self.tk_focusNext()
-        if target is not None and target is not self:
-            target.focus_set()
+    def _poll_editor(self):
+        """Synchronize outside the Win32 callback stack to keep ctypes safe."""
+        self._poll_after_id = None
+        if not self.winfo_exists() or not self._editor:
+            return
+        self._sync_from_editor()
+        self._poll_after_id = self.after(30, self._poll_editor)
 
     def _native_text(self):
         if not self._editor:
@@ -242,13 +192,18 @@ class WindowsImeEntry(tk.Frame):
             self.variable.trace_remove("write", self._trace_id)
         except (tk.TclError, AttributeError):
             pass
-        if os.name == "nt" and self._editor:
+        if self._poll_after_id is not None:
+            try:
+                self.after_cancel(self._poll_after_id)
+            except tk.TclError:
+                pass
+            self._poll_after_id = None
+        if os.name == "nt" and self._editor and user32.IsWindow(self._editor):
             user32.DestroyWindow(self._editor)
-            self._editor = 0
+        self._editor = 0
         if os.name == "nt" and self._font_handle:
             gdi32.DeleteObject(self._font_handle)
             self._font_handle = 0
-        self._window_proc = None
 
     def focus_set(self):
         if self._fallback is not None:

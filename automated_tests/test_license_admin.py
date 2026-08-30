@@ -14,7 +14,7 @@ from license_admin.version import __version__
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.3.0b4")
+        self.assertEqual(__version__, "1.3.0b5")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         source = (Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs").read_text(encoding="utf-8-sig")
@@ -35,8 +35,9 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         self.assertIn('CreateWindowExW(', native_source)
         self.assertIn('"EDIT"', native_source)
         self.assertIn("WS_TABSTOP", native_source)
-        self.assertIn("WM_IME_COMPOSITION", native_source)
-        self.assertIn("WM_IME_ENDCOMPOSITION", native_source)
+        self.assertIn("def _poll_editor(self):", native_source)
+        self.assertNotIn("SetWindowLongPtrW", native_source)
+        self.assertNotIn("WNDPROC", native_source)
 
     def test_hardware_rebind_request_preserves_previous_key(self):
         request = {

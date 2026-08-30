@@ -82,3 +82,8 @@ git pull --ff-only origin main
 - 목적은 한글 조합 글자가 Tk 보조 창에 따로 표시되는 현상을 없애고 Windows IME의 인라인 조합을 사용하는 것입니다.
 - `WindowsImeEntry`는 기존 `StringVar`와 양방향 동기화되며, 로그인·계정 관리 모달에서도 같은 컨트롤을 사용합니다.
 - 네이티브 입력 컨트롤 변경은 DB 스키마, 발급키 및 라이선스 파일 형식에 영향을 주지 않습니다.
+# 1.3.0 Beta 5 인수인계
+
+- `1.3.0b4`의 ctypes Win32 창 프로시저 콜백은 Windows 종료 코드 `0xC0000409`를 일으켜 제거했습니다.
+- `WindowsImeEntry`는 네이티브 `EDIT` 컨트롤을 유지하되, 입력값을 Tk `after(30, ...)` 이벤트 루프에서 동기화합니다.
+- 향후에도 Python ctypes 콜백으로 네이티브 입력창의 `WNDPROC`를 교체하지 마세요.
