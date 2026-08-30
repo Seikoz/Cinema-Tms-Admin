@@ -9,6 +9,7 @@
 - 단일 원본 저장소: `https://github.com/Seikoz/Cinema-Tms-Admin`
 - 기준 브랜치: `main`
 - 작업 전 `git pull --ff-only origin main`, 작업 완료 후 테스트·커밋·`git push origin main` 순서로 동기화합니다.
+- `AGENTS.md`가 Codex 작업 시작 시 `status → fetch → 원격 커밋 확인 → 깨끗할 때만 ff-only pull`, 완료 시 `테스트 → 민감 파일 제외 확인 → commit → push` 절차를 강제합니다.
 - 새 PC에서는 기존 폴더를 덮어쓰지 말고 저장소를 `Cinema_Tms_Admin`으로 Clone합니다.
 - `data`, `.python`, `.venv`, `dist`, DB, 개인키, 환경 파일은 Git에서 제외합니다. 특히 `data\licenses.db`와 백업 DB는 GitHub로 이동하지 않고 프로그램 종료 후 암호화된 별도 백업으로 이전합니다.
 
@@ -16,6 +17,8 @@
 git clone https://github.com/Seikoz/Cinema-Tms-Admin.git Cinema_Tms_Admin
 git pull --ff-only origin main
 ```
+
+작업 트리에 미커밋 변경이 있거나 로컬·원격 이력이 갈라졌으면 자동 병합하거나 강제로 덮어쓰지 않습니다. `git push --force`와 `git reset --hard`는 사용하지 않으며 변경을 보존한 상태로 먼저 충돌 내용을 확인합니다.
 
 ## 역할
 

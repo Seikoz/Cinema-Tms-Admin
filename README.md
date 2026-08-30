@@ -6,6 +6,7 @@
 - Git에는 `license_admin`, `automated_tests`, `deployment`, `docs`와 프로젝트 문서만 저장합니다.
 - `data/licenses.db`, DB 백업, `.python`, `dist`, 개인키와 환경 파일은 `.gitignore`로 제외합니다. 특히 `data/licenses.db`는 암호화된 개인 발급키와 운영 계정을 포함하므로 GitHub에 업로드하지 않습니다.
 - 다른 PC에서는 저장소를 Clone한 뒤 오프라인 런타임을 별도로 준비하고, 운영 DB는 프로그램을 완전히 종료한 상태에서 암호화된 별도 백업으로만 이전합니다.
+- 이 저장소에서 Codex가 작업할 때는 `AGENTS.md`에 따라 시작 시 원격 변경을 확인하고 깨끗한 작업 트리에서만 `pull --ff-only`를 실행하며, 테스트가 통과한 변경은 자동으로 커밋·`push origin main`까지 진행합니다.
 
 ```powershell
 git clone https://github.com/Seikoz/Cinema-Tms-Admin.git Cinema_Tms_Admin
