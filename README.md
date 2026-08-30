@@ -1,4 +1,10 @@
-# Cinema TMS Admin 1.3.0 Beta 6
+# Cinema TMS Admin 1.3.0 Beta 7
+
+## 네이티브 입력창 Tab 이동 수정
+
+- Windows 네이티브 입력창에서 Tab은 다음 입력 항목, Shift+Tab은 이전 입력 항목으로 이동합니다.
+- 위험한 Win32 창 프로시저 콜백 없이 Tk 이벤트 루프에서 안전하게 처리합니다.
+- 입력 포커스 호환성 수정이므로 `PATCH`로 판단해 `1.3.0b7`로 올렸습니다.
 
 ## VBS 한글 오류 메시지 수정
 

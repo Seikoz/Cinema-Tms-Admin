@@ -22,6 +22,8 @@ if os.name == "nt":
     WS_EX_CLIENTEDGE = 0x00000200
     WM_SETFONT = 0x0030
     EM_SETPASSWORDCHAR = 0x00CC
+    VK_TAB = 0x09
+    VK_SHIFT = 0x10
     LRESULT = ctypes.c_ssize_t
 
     user32.CreateWindowExW.argtypes = (
@@ -47,6 +49,10 @@ if os.name == "nt":
     user32.MoveWindow.restype = wintypes.BOOL
     user32.SetFocus.argtypes = (wintypes.HWND,)
     user32.SetFocus.restype = wintypes.HWND
+    user32.GetFocus.argtypes = ()
+    user32.GetFocus.restype = wintypes.HWND
+    user32.GetAsyncKeyState.argtypes = (ctypes.c_int,)
+    user32.GetAsyncKeyState.restype = ctypes.c_short
     user32.GetWindowTextLengthW.argtypes = (wintypes.HWND,)
     user32.GetWindowTextLengthW.restype = ctypes.c_int
     user32.GetWindowTextW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
@@ -68,6 +74,8 @@ class WindowsImeEntry(tk.Frame):
     keeps the composing syllable, caret, and candidate UI inside the field.
     Other platforms retain a normal Tk entry as a compatibility fallback.
     """
+
+    _tab_key_consumed = False
 
     def __init__(self, master=None, *, textvariable=None, width=20, show="", **kwargs):
         self.variable = textvariable or tk.StringVar(master=master)
@@ -147,7 +155,20 @@ class WindowsImeEntry(tk.Frame):
         if not self.winfo_exists() or not self._editor:
             return
         self._sync_from_editor()
-        self._poll_after_id = self.after(30, self._poll_editor)
+        tab_down = bool(user32.GetAsyncKeyState(VK_TAB) & 0x8000)
+        if not tab_down:
+            WindowsImeEntry._tab_key_consumed = False
+        elif int(user32.GetFocus() or 0) == self._editor and not WindowsImeEntry._tab_key_consumed:
+            WindowsImeEntry._tab_key_consumed = True
+            reverse = bool(user32.GetAsyncKeyState(VK_SHIFT) & 0x8000)
+            self.after_idle(lambda: self._focus_relative(reverse))
+        self._poll_after_id = self.after(15, self._poll_editor)
+
+    def _focus_relative(self, reverse=False):
+        self._sync_from_editor()
+        target = self.tk_focusPrev() if reverse else self.tk_focusNext()
+        if target is not None and target is not self:
+            target.focus_set()
 
     def _native_text(self):
         if not self._editor:

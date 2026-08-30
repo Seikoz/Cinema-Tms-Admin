@@ -14,7 +14,7 @@ from license_admin.version import __version__
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.3.0b6")
+        self.assertEqual(__version__, "1.3.0b7")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -38,6 +38,8 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         self.assertIn('"EDIT"', native_source)
         self.assertIn("WS_TABSTOP", native_source)
         self.assertIn("def _poll_editor(self):", native_source)
+        self.assertIn("GetAsyncKeyState(VK_TAB)", native_source)
+        self.assertIn("def _focus_relative(self, reverse=False):", native_source)
         self.assertNotIn("SetWindowLongPtrW", native_source)
         self.assertNotIn("WNDPROC", native_source)
 

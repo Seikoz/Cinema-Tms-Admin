@@ -92,3 +92,8 @@ git pull --ff-only origin main
 - `deployment/Cinema-TMS-Admin.vbs`는 Windows Script Host의 한글 호환성을 위해 UTF-16 LE BOM으로 유지해야 합니다.
 - VBS를 수정한 뒤 UTF-8로 저장하면 오류 메시지가 다시 깨질 수 있으므로 테스트에서 BOM을 확인합니다.
 - `1.3.0b5`의 네이티브 입력창 안정화 수정이 포함되어 있습니다.
+# 1.3.0 Beta 7 인수인계
+
+- `WindowsImeEntry`의 Tab/Shift+Tab 포커스 이동은 `GetAsyncKeyState`를 Tk 이벤트 루프에서 확인해 처리합니다.
+- 한 번의 Tab이 여러 네이티브 입력창에서 중복 처리되지 않도록 클래스 공유 `_tab_key_consumed` 상태를 유지합니다.
+- `WNDPROC` 교체나 ctypes 콜백 방식으로 되돌리지 마세요.
