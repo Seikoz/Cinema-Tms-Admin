@@ -1,7 +1,7 @@
 # Cinema TMS Admin — 작업 인수인계
 
 최종 갱신: 2026-08-30
-기준 소스: **v1.3.0 Beta 2**
+기준 소스: **v1.3.0 Beta 3**
 실제 작업 경로: `D:\Codex\Cinema_Tms_Admin`
 
 ## GitHub 기준 소스
@@ -37,7 +37,7 @@ git pull --ff-only origin main
 ## 배포
 
 - 빌더: `deployment\build-admin-package.ps1`
-- 현재 패키지: `dist\Cinema-TMS-Admin-1.3.0b2-Windows-x64.zip`
+- 현재 패키지: `dist\Cinema-TMS-Admin-1.3.0b3-Windows-x64.zip`
 - 관리자 배포 ZIP에는 `data\licenses.db`를 포함하지 않습니다.
 
 ## 프로그램 업데이트
@@ -69,3 +69,10 @@ git pull --ff-only origin main
 - `license_admin\manager.pyw`는 Windows에서 Tk 기본 글꼴을 `Malgun Gothic`으로 지정하며 문자열 조합은 Windows IME와 Tk 기본 입력 처리에 맡긴다.
 - 입력창에 별도 KeyPress·검증 콜백을 연결하지 않아 조합 중인 한글을 강제로 읽거나 변경하지 않는다.
 - Windows 입력 호환성 수정이므로 `PATCH`로 분류해 `1.3.0b2`로 올렸다.
+
+### Beta 3 추가 수정
+
+- VBS 실행 방식 변경만으로 해결되지 않은 Windows 한글 IME 조합 문제를 위해 편집 가능한 `ttk.Entry`를 `KoreanImeEntry(tk.Entry)`로 교체했다.
+- 고객명·영화관명·날짜와 `FormDialog` 기반 로그인/계정 입력창에 적용하며 읽기 전용 하드웨어 키 필드는 기존 ttk 위젯을 유지한다.
+- 별도의 `KeyPress`, `KeyRelease`, `validatecommand`를 연결하지 않아 조합 중 문자열을 Python 코드가 변경하지 않는다.
+- 같은 호환성 오류의 추가 수정이므로 `PATCH`로 분류해 `1.3.0b3`로 올렸다.

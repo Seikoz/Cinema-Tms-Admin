@@ -14,7 +14,7 @@ from license_admin.version import __version__
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.3.0b2")
+        self.assertEqual(__version__, "1.3.0b3")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         source = (Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs").read_text(encoding="utf-8-sig")
@@ -22,6 +22,15 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         self.assertIn(r'\.venv\Scripts\pythonw.exe', source)
         self.assertIn("shell.Run(command, 1, True)", source)
         self.assertNotIn("shell.Run(command, 0, True)", source)
+
+    def test_editable_fields_use_classic_tk_entry_for_korean_ime(self):
+        source = (Path(__file__).parents[1] / "license_admin" / "manager.pyw").read_text(encoding="utf-8")
+        self.assertIn("class KoreanImeEntry(tk.Entry):", source)
+        self.assertIn("KoreanImeEntry(master, textvariable=self.variables[key]", source)
+        self.assertIn("KoreanImeEntry(issue, textvariable=self.customer", source)
+        self.assertIn("KoreanImeEntry(issue, textvariable=self.cinema", source)
+        self.assertNotIn("ttk.Entry(issue, textvariable=self.customer", source)
+        self.assertNotIn("ttk.Entry(issue, textvariable=self.cinema", source)
 
     def test_hardware_rebind_request_preserves_previous_key(self):
         request = {
