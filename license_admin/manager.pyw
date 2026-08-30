@@ -18,7 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from license_admin.version import __version__ as APP_VERSION
-from license_admin.core import LegacyKeyMigrationRequired, LicenseAuthority, read_hardware_request
+from license_admin.core import LegacyKeyMigrationRequired, LicenseAuthority, extended_license_expiry, read_hardware_request
 from license_admin.windows_ime import WindowsImeEntry
 
 
@@ -507,7 +507,7 @@ class LicenseManager(tk.Tk):
         if hardware_rebind:
             next_expiry = max(previous_expiry, date.today() + timedelta(days=1))
         else:
-            next_expiry = max(previous_expiry, date.today()) + timedelta(days=365)
+            next_expiry = extended_license_expiry(previous_expiry)
         self.expires_on.set(next_expiry.isoformat())
         self.auditorium_limit.set(str(max(1, int(record.get("auditorium_limit") or 1))))
         if record["status"] == "active":

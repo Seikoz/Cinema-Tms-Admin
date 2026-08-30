@@ -125,6 +125,15 @@ def normalize_hardware_key(value: str) -> str:
     return normalized
 
 
+def extended_license_expiry(previous_expiry: date, today: date | None = None) -> date:
+    """Extend by one year without overflowing Python's maximum date."""
+    base = max(previous_expiry, today or date.today())
+    extension = timedelta(days=365)
+    if (date.max - base).days < extension.days:
+        return date.max
+    return base + extension
+
+
 def read_hardware_request(path: Path) -> dict:
     try:
         request = json.loads(Path(path).read_text(encoding="utf-8-sig"))

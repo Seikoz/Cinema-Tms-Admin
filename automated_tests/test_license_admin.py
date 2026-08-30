@@ -9,13 +9,19 @@ from unittest.mock import patch
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from license_admin.core import LicenseAuthority, canonical_payload, read_hardware_request, trusted_issuer_id
+from license_admin.core import (
+    LicenseAuthority,
+    canonical_payload,
+    extended_license_expiry,
+    read_hardware_request,
+    trusted_issuer_id,
+)
 from license_admin.version import __version__
 
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.4.0b1")
+        self.assertEqual(__version__, "1.4.0b2")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -94,6 +100,13 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         self.assertIn("def _load_previous_license(self, record: dict", source)
         self.assertIn("기존 사용 이력", source)
         self.assertIn('self.rebind_supersedes = record["license_id"]', source)
+
+    def test_maximum_license_expiry_does_not_overflow(self):
+        self.assertEqual(extended_license_expiry(date.max, date(2026, 8, 30)), date.max)
+        self.assertEqual(
+            extended_license_expiry(date(2027, 8, 30), date(2026, 8, 30)),
+            date(2028, 8, 29),
+        )
 
     def test_offline_update_support_is_independent_and_preserves_data(self):
         root = Path(__file__).parents[1]

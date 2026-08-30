@@ -103,3 +103,8 @@ git pull --ff-only origin main
 - 기존 정보가 있으면 고객명, 영화관명, 상영관 한도를 채우고 이전 기간·상태·담당자를 표시합니다.
 - 최신 이력이 `active`인 경우에만 `rebind_supersedes`에 라이선스 ID를 넣어 갱신으로 연결합니다.
 - `revoked` 등 비활성 이력은 참고 정보만 불러오고 신규 발급으로 처리합니다.
+# 1.4.0 Beta 2 인수인계
+
+- 기존 만료일을 연장할 때 `license_admin.core.extended_license_expiry()`를 사용해 `date.max` 범위를 넘지 않도록 합니다.
+- `9999-12-31` 라이선스는 갱신 입력값에서도 그대로 유지합니다.
+- 하드웨어 키 자동 조회 로직에서 직접 `timedelta(days=365)`를 더하지 마세요.
