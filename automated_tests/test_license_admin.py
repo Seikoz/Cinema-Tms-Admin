@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import json
 import runpy
@@ -9,6 +10,7 @@ from unittest.mock import patch
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 
 from license_admin.core import (
     LicenseAuthority,
@@ -18,11 +20,12 @@ from license_admin.core import (
     trusted_issuer_id,
 )
 from license_admin.version import __version__
+from license_admin.update_credentials import encrypt_update_token
 
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.5.0b2")
+        self.assertEqual(__version__, "1.6.0b1")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -69,6 +72,18 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
             loaded = read_hardware_request(path)
         self.assertEqual(loaded["request_type"], "hardware_rebind")
         self.assertEqual(loaded["previous_hardware_key"], request["previous_hardware_key"])
+
+    def test_update_token_is_encrypted_for_the_client_public_key(self):
+        private_key = X25519PrivateKey.generate()
+        public_key = base64.b64encode(private_key.public_key().public_bytes(
+            serialization.Encoding.Raw, serialization.PublicFormat.Raw
+        )).decode("ascii")
+        credential = encrypt_update_token(
+            "github_pat_test", public_key,
+            license_id="license-1", hardware_key="1111-1111-1111-1111-1111-1111-1111-1111",
+        )
+        self.assertEqual(credential["schema"], 1)
+        self.assertNotIn("github_pat_test", json.dumps(credential))
 
     def test_latest_license_is_loaded_by_hardware_key(self):
         hardware_key = "3333-3333-3333-3333-3333-3333-3333-3333"
@@ -148,7 +163,7 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "publish-update.yml").read_text(encoding="utf-8")
         builder = (Path(__file__).parents[1] / "deployment" / "build-update-package.ps1").read_text(encoding="utf-8-sig")
         self.assertIn('text="온라인 업데이트", command=self.online_update', source)
-        self.assertIn('text="GitHub 토큰 설정", command=self.configure_update_token', source)
+        self.assertIn('text="공용 업데이트 토큰 설정", command=self.configure_update_token', source)
         self.assertIn('text="파일 업데이트", command=self.install_update', source)
         self.assertIn('check_for_update(APP_VERSION, token)', source)
         self.assertIn('download_update(release, PROJECT_ROOT / "data" / "updates", token)', source)

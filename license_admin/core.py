@@ -30,6 +30,7 @@ from license_admin.contract import (
     canonical_payload,
     trusted_issuer_id,
 )
+from license_admin.update_credentials import encrypt_update_token, validate_client_public_key
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -145,13 +146,18 @@ def read_hardware_request(path: Path) -> dict:
     expected = hashlib.sha256(canonical_payload(request)).hexdigest()
     if not checksum or checksum != expected:
         raise ValueError("하드웨어 키 파일이 손상되었거나 변경되었습니다.")
-    if request.get("schema") != HARDWARE_REQUEST_SCHEMA or request.get("product") != PRODUCT_ID:
+    request_schema = request.get("schema")
+    if request_schema not in {1, HARDWARE_REQUEST_SCHEMA} or request.get("product") != PRODUCT_ID:
         raise ValueError("Cinema TMS용 하드웨어 키 파일이 아닙니다.")
     if request.get("issuer_id") != trusted_issuer_id():
         raise ValueError("이 라이선스 발급 시스템과 호환되지 않는 하드웨어 키 파일입니다.")
     if not str(request.get("request_id", "")).strip() or not str(request.get("created_at", "")).strip():
         raise ValueError("하드웨어 키 파일에 필수 정보가 없습니다.")
     request["hardware_key"] = normalize_hardware_key(request.get("hardware_key", ""))
+    if request_schema == HARDWARE_REQUEST_SCHEMA:
+        request["update_public_key"] = validate_client_public_key(request.get("update_public_key", ""))
+    else:
+        request["update_public_key"] = ""
     if request.get("request_type") == "hardware_rebind":
         request["previous_hardware_key"] = normalize_hardware_key(request.get("previous_hardware_key", ""))
     request["checksum"] = checksum
@@ -185,6 +191,7 @@ class LicenseAuthority:
                     file_path TEXT NOT NULL DEFAULT '', supersedes TEXT NOT NULL DEFAULT '',
                     operator TEXT NOT NULL DEFAULT '', workstation TEXT NOT NULL DEFAULT '',
                     auditorium_limit INTEGER NOT NULL DEFAULT 0,
+                    update_public_key TEXT NOT NULL DEFAULT '',
                     action TEXT NOT NULL DEFAULT 'issue'
                 )"""
             )
@@ -195,6 +202,8 @@ class LicenseAuthority:
                 db.execute("ALTER TABLE licenses ADD COLUMN workstation TEXT NOT NULL DEFAULT ''")
             if "auditorium_limit" not in columns:
                 db.execute("ALTER TABLE licenses ADD COLUMN auditorium_limit INTEGER NOT NULL DEFAULT 0")
+            if "update_public_key" not in columns:
+                db.execute("ALTER TABLE licenses ADD COLUMN update_public_key TEXT NOT NULL DEFAULT ''")
             if "action" not in columns:
                 db.execute("ALTER TABLE licenses ADD COLUMN action TEXT NOT NULL DEFAULT 'issue'")
                 db.execute("UPDATE licenses SET action='renewal' WHERE supersedes<>''")
@@ -500,7 +509,8 @@ class LicenseAuthority:
         return [dict(row) for row in rows]
 
     def issue(self, *, customer: str, cinema: str, hardware_key: str, valid_from: date,
-              expires_on: date, auditorium_limit: int, destination: Path, supersedes: str = "") -> dict:
+              expires_on: date, auditorium_limit: int, destination: Path, supersedes: str = "",
+              update_public_key: str = "", update_token: str = "") -> dict:
         actor = self._require_roles("admin", "operator")
         if not self._private_key:
             raise ValueError("현재 계정에는 라이선스 발급 권한이 없습니다.")
@@ -518,13 +528,19 @@ class LicenseAuthority:
             raise ValueError("상영관 수 제한은 1 이상이어야 합니다.")
         issued_at = _utc_now().isoformat()
         action = "renewal" if supersedes else "issue"
+        license_id = str(uuid.uuid4())
         payload = {
-            "schema": LICENSE_SCHEMA, "product": PRODUCT_ID, "license_id": str(uuid.uuid4()),
+            "schema": LICENSE_SCHEMA, "product": PRODUCT_ID, "license_id": license_id,
             "customer": customer, "cinema": cinema, "hardware_key": hardware_key,
             "valid_from": valid_from.isoformat(), "expires_on": expires_on.isoformat(),
             "features": ["core"], "issued_at": issued_at,
             "auditorium_limit": auditorium_limit,
         }
+        if update_public_key or update_token:
+            update_public_key = validate_client_public_key(update_public_key)
+            payload["update_credential"] = encrypt_update_token(
+                update_token, update_public_key, license_id=license_id, hardware_key=hardware_key,
+            )
         envelope = {"payload": payload, "signature": base64.b64encode(self._private_key.sign(canonical_payload(payload))).decode("ascii")}
         destination = Path(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -533,11 +549,11 @@ class LicenseAuthority:
             db.execute(
                 """INSERT INTO licenses
                    (license_id,customer,cinema,machine_code,valid_from,expires_on,issued_at,
-                    status,file_path,supersedes,operator,workstation,auditorium_limit,action)
-                   VALUES(?,?,?,?,?,?,?,'active',?,?,?,?,?,?)""",
+                    status,file_path,supersedes,operator,workstation,auditorium_limit,update_public_key,action)
+                   VALUES(?,?,?,?,?,?,?,'active',?,?,?,?,?,?,?)""",
                 (payload["license_id"], customer, cinema, hardware_key, payload["valid_from"],
                  payload["expires_on"], issued_at, str(destination), supersedes, actor.username,
-                 platform.node(), auditorium_limit, action),
+                 platform.node(), auditorium_limit, update_public_key, action),
             )
             if supersedes:
                 db.execute("UPDATE licenses SET status='renewed' WHERE license_id=? AND status='active'", (supersedes,))

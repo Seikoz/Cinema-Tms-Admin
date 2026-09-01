@@ -122,6 +122,7 @@ class LicenseManager(tk.Tk):
         self.status = tk.StringVar(value="로그인이 필요합니다.")
         self.request_loaded = False
         self.rebind_supersedes = ""
+        self.update_public_key = ""
         self._build()
         self.protocol("WM_DELETE_WINDOW", self.close_application)
         self.withdraw()
@@ -144,7 +145,7 @@ class LicenseManager(tk.Tk):
         self.logout_button.pack(side="right")
         self.online_update_button = ttk.Button(authority, text="온라인 업데이트", command=self.online_update)
         self.online_update_button.pack(side="right", padx=6)
-        self.token_button = ttk.Button(authority, text="GitHub 토큰 설정", command=self.configure_update_token)
+        self.token_button = ttk.Button(authority, text="공용 업데이트 토큰 설정", command=self.configure_update_token)
         self.token_button.pack(side="right", padx=6)
         self.update_button = ttk.Button(authority, text="파일 업데이트", command=self.install_update)
         self.update_button.pack(side="right", padx=6)
@@ -290,7 +291,7 @@ class LicenseManager(tk.Tk):
             "Cinema TMS Admin GitHub 토큰",
             "Seikoz/Cinema-Tms-Updates 비공개 저장소를 읽을 수 있는 공용 Fine-grained PAT를 입력하세요.\n"
             "Repository access: Cinema-Tms-Updates / Contents: Read-only\n\n"
-            "토큰은 현재 Windows 사용자 범위로 암호화 저장됩니다.",
+            "토큰은 현재 Windows 사용자 범위로 암호화 저장되며, 새 라이선스에 장비별로 다시 암호화됩니다.",
             show="●", parent=self,
         )
         if token is None:
@@ -305,7 +306,11 @@ class LicenseManager(tk.Tk):
             self.online_update()
         else:
             self._refresh_permissions()
-            messagebox.showinfo("라이선스 관리자 업데이트", "GitHub 읽기 전용 토큰을 암호화하여 저장했습니다.", parent=self)
+            messagebox.showinfo(
+                "라이선스 관리자 업데이트",
+                "공용 GitHub 읽기 전용 토큰을 암호화하여 저장했습니다.\n새 라이선스 발급 및 관리자 업데이트에 자동 사용됩니다.",
+                parent=self,
+            )
 
     def online_update_check_worker(self, token: str):
         try:
@@ -453,6 +458,7 @@ class LicenseManager(tk.Tk):
         self.authority.logout()
         self.request_loaded = False
         self.rebind_supersedes = ""
+        self.update_public_key = ""
         self.hardware_key.set("")
         self.hardware_source.set("하드웨어 키 파일을 불러오세요.")
         self.status.set("로그인이 필요합니다.")
@@ -604,12 +610,14 @@ class LicenseManager(tk.Tk):
                     self._load_previous_license(previous)
                 else:
                     self.hardware_source.set(f"신규 장비 · {Path(source).name}")
+            self.update_public_key = request.get("update_public_key", "")
             self.request_loaded = True
         except Exception as exc:
             self.hardware_key.set("")
             self.hardware_source.set("하드웨어 키 파일을 다시 선택하세요.")
             self.request_loaded = False
             self.rebind_supersedes = ""
+            self.update_public_key = ""
             messagebox.showerror("라이선스 관리", str(exc), parent=self)
         self._refresh_permissions()
 
@@ -641,6 +649,25 @@ class LicenseManager(tk.Tk):
         if not self.request_loaded or not self.hardware_key.get():
             messagebox.showwarning("라이선스 관리", "TMS에서 저장한 .tmshw 하드웨어 키 파일을 불러오세요.", parent=self)
             return
+        if not self.update_public_key:
+            messagebox.showwarning(
+                "라이선스 관리",
+                "자동 업데이트 암호화 키가 없는 이전 하드웨어 키 파일입니다.\n최신 TMS에서 .tmshw 파일을 다시 저장해 불러오세요.",
+                parent=self,
+            )
+            return
+        try:
+            update_token = os.getenv("TMS_ADMIN_GITHUB_TOKEN", "").strip() or load_update_token(UPDATE_TOKEN_PATH)
+        except GitHubUpdateError as exc:
+            messagebox.showerror("라이선스 관리", str(exc), parent=self)
+            return
+        if not update_token:
+            messagebox.showwarning(
+                "라이선스 관리",
+                "공용 업데이트 토큰을 먼저 설정하세요.\n상단의 공용 업데이트 토큰 설정 버튼을 사용하세요.",
+                parent=self,
+            )
+            return
         destination = filedialog.asksaveasfilename(
             defaultextension=".tmslic", initialfile=f"{self.cinema.get().strip() or 'cinema-tms'}.tmslic",
             filetypes=[("Cinema TMS 라이선스", "*.tmslic")],
@@ -653,6 +680,7 @@ class LicenseManager(tk.Tk):
                 valid_from=date.fromisoformat(self.valid_from.get()), expires_on=date.fromisoformat(self.expires_on.get()),
                 auditorium_limit=self.auditorium_limit.get(), destination=Path(destination),
                 supersedes=supersedes or self.rebind_supersedes,
+                update_public_key=self.update_public_key, update_token=update_token,
             )
             self.rebind_supersedes = ""
             self.refresh_records()
@@ -677,6 +705,7 @@ class LicenseManager(tk.Tk):
         self.hardware_source.set("기존 발급 이력")
         self.request_loaded = True
         self.rebind_supersedes = ""
+        self.update_public_key = record.get("update_public_key", "")
         self.valid_from.set(date.today().isoformat())
         self.expires_on.set((date.today() + timedelta(days=365)).isoformat())
         self.auditorium_limit.set(str(max(1, int(record.get("auditorium_limit") or 1))))
