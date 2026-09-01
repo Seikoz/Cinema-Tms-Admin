@@ -1,8 +1,14 @@
 # Cinema TMS Admin — 작업 인수인계
 
-최종 갱신: 2026-08-30
-기준 소스: **v1.6.0 Beta 1**
+최종 갱신: 2026-09-02
+기준 소스: **v1.6.0 Beta 2**
 실제 작업 경로: `D:\Codex\Cinema_Tms_Admin`
+
+## 1.6.0 Beta 2 로컬 GitHub 게시 인수인계
+
+- `UPDATE_RELEASE_TOKEN`과 `.github/workflows/publish-update.yml`을 제거했다.
+- 개발 PC에서 `gh auth login` 후 `deployment\publish-github-update.ps1`을 실행해 테스트부터 `admin-v<버전>` 중앙 Release 게시까지 수행한다.
+- GitHub CLI 로그인 정보는 개발 PC 자격 증명 저장소에만 두며 소스·배포본·관리자 DB에 복사하지 않는다.
 
 ## 1.6.0 Beta 1 공용 업데이트 토큰 인수인계
 
@@ -14,7 +20,7 @@
 ## 1.5.0 Beta 2 업데이트 저장소 분리
 
 - 관리자 프로그램은 `Seikoz/Cinema-Tms-Updates`에서 `admin-v<버전>` Release만 조회한다.
-- 공용 클라이언트 PAT는 업데이트 저장소 Contents 읽기만, 소스 Actions의 `UPDATE_RELEASE_TOKEN`은 업데이트 저장소 Contents 쓰기만 허용한다.
+- 이 버전에서 도입했던 `UPDATE_RELEASE_TOKEN` 방식은 1.6.0 Beta 2에서 폐기했으며 다시 설정하지 않는다.
 - 두 토큰은 용도와 권한을 분리하고 소스·배포본·DB에 포함하지 않는다.
 - `.github/workflows/publish-update.yml`은 `v<버전>` 소스 태그를 중앙 저장소의 `admin-v<버전>` Release로 변환해 게시한다.
 - 권한과 배포 경로를 분리한 호환 수정이므로 `PATCH`인 `1.5.0b2`로 올렸다.

@@ -2,6 +2,16 @@
 
 이 프로그램은 TMS 클라이언트와 분리된 관리자 전용 오프라인 발급 도구입니다.
 
+## GitHub 업데이트 게시
+
+개발 PC에 GitHub CLI를 설치하거나 공용 휴대용 실행 파일을 `D:\Codex\Tools\GitHubCLI\gh.exe`에 둔 뒤 `& 'D:\Codex\Tools\GitHubCLI\gh.exe' auth login`으로 로그인하고 실행합니다.
+
+```powershell
+.\deployment\publish-github-update.ps1
+```
+
+스크립트는 테스트, 관리자 업데이트 ZIP과 SHA-256 생성, 소스 push·버전 태그, `Seikoz/Cinema-Tms-Updates`의 `admin-v<버전>` Release 게시를 수행합니다. 게시용 PAT나 Actions secret은 사용하지 않습니다.
+
 ## 실행
 
 `Cinema_Tms_Admin`은 라이선스 관리자 전용 독립 프로젝트입니다. ZIP을 완전히 압축 해제한 뒤 `deployment\Cinema-TMS-Admin.vbs`를 실행합니다.

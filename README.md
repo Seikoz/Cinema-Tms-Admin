@@ -1,4 +1,10 @@
-# Cinema TMS Admin 1.6.0 Beta 1
+# Cinema TMS Admin 1.6.0 Beta 2
+
+## 개발 PC 직접 게시
+
+- 게시용 `UPDATE_RELEASE_TOKEN`과 자동 게시 Actions를 제거했습니다.
+- `deployment\publish-github-update.ps1`이 개발 PC의 GitHub CLI 로그인으로 테스트, 패키지·SHA-256 생성, 소스 push·태그 및 중앙 Release 게시를 수행합니다.
+- 공용 읽기 토큰은 관리자 PC의 DPAPI 저장과 장비별 라이선스 암호화에만 사용합니다.
 
 ## 라이선스 기반 공용 업데이트 토큰
 
@@ -12,7 +18,7 @@
 - 업데이트 조회 대상을 `Seikoz/Cinema-Tms-Updates` 비공개 저장소로 분리했습니다.
 - 공용 다운로드 PAT에는 업데이트 저장소의 Contents 읽기 권한만 부여합니다.
 - 관리자 프로그램은 `admin-v<버전>` Release만 선택하므로 TMS Release와 섞이지 않습니다.
-- Actions 게시용 `UPDATE_RELEASE_TOKEN`은 업데이트 저장소 쓰기 권한만 가지며 클라이언트 공용 토큰과 분리합니다.
+- 이 버전에서 사용했던 Actions 게시용 `UPDATE_RELEASE_TOKEN` 방식은 1.6.0 Beta 2에서 폐기하고 개발 PC 직접 게시로 전환했습니다.
 
 ## 비공개 GitHub 온라인 업데이트
 

@@ -25,7 +25,7 @@ from license_admin.update_credentials import encrypt_update_token
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.6.0b1")
+        self.assertEqual(__version__, "1.6.0b2")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -160,7 +160,7 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_online_update_supports_private_github_releases(self):
         source = (Path(__file__).parents[1] / "license_admin" / "manager.pyw").read_text(encoding="utf-8")
         github = (Path(__file__).parents[1] / "license_admin" / "github_updates.py").read_text(encoding="utf-8")
-        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "publish-update.yml").read_text(encoding="utf-8")
+        publisher = (Path(__file__).parents[1] / "deployment" / "publish-github-update.ps1").read_text(encoding="utf-8-sig")
         builder = (Path(__file__).parents[1] / "deployment" / "build-update-package.ps1").read_text(encoding="utf-8-sig")
         self.assertIn('text="온라인 업데이트", command=self.online_update', source)
         self.assertIn('text="공용 업데이트 토큰 설정", command=self.configure_update_token', source)
@@ -170,11 +170,12 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         self.assertIn('DEFAULT_REPOSITORY = "Seikoz/Cinema-Tms-Updates"', github)
         self.assertIn('CryptProtectData', github)
         self.assertIn('$zip + ".sha256"', builder)
-        self.assertIn('gh release upload', workflow)
-        self.assertIn('secrets.UPDATE_RELEASE_TOKEN', workflow)
-        self.assertIn('Seikoz/Cinema-Tms-Updates', workflow)
-        self.assertIn('admin-v$version', workflow)
-        self.assertIn("permissions:\n  contents: read", workflow)
+        self.assertIn('gh auth status', publisher)
+        self.assertIn('gh release upload', publisher)
+        self.assertNotIn('UPDATE_RELEASE_TOKEN', publisher)
+        self.assertIn('Seikoz/Cinema-Tms-Updates', publisher)
+        self.assertIn('admin-v$version', publisher)
+        self.assertFalse((Path(__file__).parents[1] / ".github" / "workflows" / "publish-update.yml").exists())
 
     def test_default_database_is_inside_admin_project(self):
         from license_admin.core import DEFAULT_DATA_DIR
