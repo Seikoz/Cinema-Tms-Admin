@@ -288,8 +288,8 @@ class LicenseManager(tk.Tk):
     def configure_update_token(self, check_after_save=False):
         token = simpledialog.askstring(
             "Cinema TMS Admin GitHub 토큰",
-            "Seikoz/Cinema-Tms-Admin 비공개 저장소를 읽을 수 있는 Fine-grained PAT를 입력하세요.\n"
-            "Repository access: Cinema-Tms-Admin / Contents: Read-only\n\n"
+            "Seikoz/Cinema-Tms-Updates 비공개 저장소를 읽을 수 있는 공용 Fine-grained PAT를 입력하세요.\n"
+            "Repository access: Cinema-Tms-Updates / Contents: Read-only\n\n"
             "토큰은 현재 Windows 사용자 범위로 암호화 저장됩니다.",
             show="●", parent=self,
         )

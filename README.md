@@ -1,4 +1,11 @@
-# Cinema TMS Admin 1.5.0 Beta 1
+# Cinema TMS Admin 1.5.0 Beta 2
+
+## 업데이트 전용 저장소 분리
+
+- 업데이트 조회 대상을 `Seikoz/Cinema-Tms-Updates` 비공개 저장소로 분리했습니다.
+- 공용 다운로드 PAT에는 업데이트 저장소의 Contents 읽기 권한만 부여합니다.
+- 관리자 프로그램은 `admin-v<버전>` Release만 선택하므로 TMS Release와 섞이지 않습니다.
+- Actions 게시용 `UPDATE_RELEASE_TOKEN`은 업데이트 저장소 쓰기 권한만 가지며 클라이언트 공용 토큰과 분리합니다.
 
 ## 비공개 GitHub 온라인 업데이트
 

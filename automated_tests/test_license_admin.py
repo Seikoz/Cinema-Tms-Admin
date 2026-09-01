@@ -22,7 +22,7 @@ from license_admin.version import __version__
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.5.0b1")
+        self.assertEqual(__version__, "1.5.0b2")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -152,10 +152,14 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         self.assertIn('text="파일 업데이트", command=self.install_update', source)
         self.assertIn('check_for_update(APP_VERSION, token)', source)
         self.assertIn('download_update(release, PROJECT_ROOT / "data" / "updates", token)', source)
-        self.assertIn('DEFAULT_REPOSITORY = "Seikoz/Cinema-Tms-Admin"', github)
+        self.assertIn('DEFAULT_REPOSITORY = "Seikoz/Cinema-Tms-Updates"', github)
         self.assertIn('CryptProtectData', github)
         self.assertIn('$zip + ".sha256"', builder)
         self.assertIn('gh release upload', workflow)
+        self.assertIn('secrets.UPDATE_RELEASE_TOKEN', workflow)
+        self.assertIn('Seikoz/Cinema-Tms-Updates', workflow)
+        self.assertIn('admin-v$version', workflow)
+        self.assertIn("permissions:\n  contents: read", workflow)
 
     def test_default_database_is_inside_admin_project(self):
         from license_admin.core import DEFAULT_DATA_DIR

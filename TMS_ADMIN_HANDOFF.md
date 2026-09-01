@@ -1,8 +1,16 @@
 # Cinema TMS Admin — 작업 인수인계
 
 최종 갱신: 2026-08-30
-기준 소스: **v1.5.0 Beta 1**
+기준 소스: **v1.5.0 Beta 2**
 실제 작업 경로: `D:\Codex\Cinema_Tms_Admin`
+
+## 1.5.0 Beta 2 업데이트 저장소 분리
+
+- 관리자 프로그램은 `Seikoz/Cinema-Tms-Updates`에서 `admin-v<버전>` Release만 조회한다.
+- 공용 클라이언트 PAT는 업데이트 저장소 Contents 읽기만, 소스 Actions의 `UPDATE_RELEASE_TOKEN`은 업데이트 저장소 Contents 쓰기만 허용한다.
+- 두 토큰은 용도와 권한을 분리하고 소스·배포본·DB에 포함하지 않는다.
+- `.github/workflows/publish-update.yml`은 `v<버전>` 소스 태그를 중앙 저장소의 `admin-v<버전>` Release로 변환해 게시한다.
+- 권한과 배포 경로를 분리한 호환 수정이므로 `PATCH`인 `1.5.0b2`로 올렸다.
 
 ## 1.5.0 Beta 1 비공개 GitHub 온라인 업데이트
 

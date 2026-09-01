@@ -14,7 +14,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-DEFAULT_REPOSITORY = "Seikoz/Cinema-Tms-Admin"
+DEFAULT_REPOSITORY = "Seikoz/Cinema-Tms-Updates"
+RELEASE_TAG_PREFIX = "admin-v"
 GITHUB_API_VERSION = "2022-11-28"
 MAX_UPDATE_BYTES = 512 * 1024 * 1024
 VERSION_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)(\d+))?$")
@@ -86,7 +87,10 @@ def parse_update_releases(payload: object, current_version: str) -> UpdateReleas
     for item in payload:
         if not isinstance(item, dict) or item.get("draft"):
             continue
-        version = str(item.get("tag_name") or "").removeprefix("v")
+        tag = str(item.get("tag_name") or "")
+        if not tag.startswith(RELEASE_TAG_PREFIX):
+            continue
+        version = tag.removeprefix(RELEASE_TAG_PREFIX)
         try:
             if version_key(version) <= version_key(current_version):
                 continue

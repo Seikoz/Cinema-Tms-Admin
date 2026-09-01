@@ -39,9 +39,12 @@ class GitHubUpdatesTest(unittest.TestCase):
             {"name": "Cinema-TMS-Admin-Update-1.5.0b2.zip", "url": "https://api.github.com/assets/1", "size": 20},
             {"name": "Cinema-TMS-Admin-Update-1.5.0b2.zip.sha256", "url": "https://api.github.com/assets/2", "size": 80},
         ]
-        payload = [{"tag_name": "v1.5.0b2", "draft": False, "assets": assets}]
+        payload = [{"tag_name": "admin-v1.5.0b2", "draft": False, "assets": assets}]
         self.assertEqual(parse_update_releases(payload, "1.5.0b1").version, "1.5.0b2")
         self.assertIsNone(parse_update_releases(payload, "1.5.0b2"))
+        payload[0]["tag_name"] = "tms-v1.5.0b2"
+        self.assertIsNone(parse_update_releases(payload, "1.5.0b1"))
+        payload[0]["tag_name"] = "admin-v1.5.0b2"
         assets.pop()
         self.assertIsNone(parse_update_releases(payload, "1.5.0b1"))
 
