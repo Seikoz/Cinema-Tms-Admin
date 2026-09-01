@@ -20,7 +20,9 @@ import bcrypt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from cryptography.hazmat.primitives import hashes
 
 from license_admin.contract import (
     HARDWARE_REQUEST_SCHEMA,
@@ -40,6 +42,9 @@ HARDWARE_KEY_DASHES = str.maketrans({"‐": "-", "‑": "-", "‒": "-", "–": 
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]{3,40}$")
 DPAPI_ENTROPY = hashlib.sha256(b"Cinema-TMS-License-Authority-DPAPI-v1").digest()
 KEY_WRAP_AAD = b"Cinema-TMS-License-Authority-DB-v1"
+UPDATE_TOKEN_AAD = b"Cinema-TMS-Admin-Update-Token-DB-v1"
+UPDATE_TOKEN_KEY_INFO = b"Cinema-TMS-Admin-Update-Token-Key-v1"
+UPDATE_TOKEN_SETTING = "github_update_token"
 MAX_LOGIN_FAILURES = 5
 LOCKOUT_MINUTES = 15
 ROLES = {"admin", "operator", "viewer"}
@@ -230,6 +235,12 @@ class LicenseAuthority:
                     workstation TEXT NOT NULL DEFAULT ''
                 )"""
             )
+            db.execute(
+                """CREATE TABLE IF NOT EXISTS secure_settings (
+                    name TEXT PRIMARY KEY, nonce BLOB NOT NULL, encrypted_value BLOB NOT NULL,
+                    updated_at TEXT NOT NULL, updated_by TEXT NOT NULL DEFAULT ''
+                )"""
+            )
             db.commit()
 
     @property
@@ -408,6 +419,64 @@ class LicenseAuthority:
             self._audit(self._current_user.username, "logout", True, "")
         self._private_key = None
         self._current_user = None
+
+    def _update_token_key(self) -> bytes:
+        if not self._private_key:
+            raise ValueError("현재 로그인 계정에서 업데이트 자격 증명을 해제할 수 없습니다.")
+        private_der = self._private_key.private_bytes(
+            serialization.Encoding.DER,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        )
+        return HKDF(
+            algorithm=hashes.SHA256(), length=32, salt=None, info=UPDATE_TOKEN_KEY_INFO
+        ).derive(private_der)
+
+    def has_update_token(self) -> bool:
+        with closing(self._connect()) as db:
+            return db.execute(
+                "SELECT 1 FROM secure_settings WHERE name=?", (UPDATE_TOKEN_SETTING,)
+            ).fetchone() is not None
+
+    def save_update_token(self, token: str) -> None:
+        actor = self._require_roles("admin")
+        token = str(token).strip()
+        if not token or len(token) > 2048:
+            raise ValueError("공용 업데이트 토큰 값이 비어 있거나 너무 깁니다.")
+        nonce = os.urandom(12)
+        encrypted = AESGCM(self._update_token_key()).encrypt(
+            nonce, token.encode("utf-8"), UPDATE_TOKEN_AAD
+        )
+        with closing(self._connect()) as db:
+            db.execute(
+                """INSERT INTO secure_settings(name,nonce,encrypted_value,updated_at,updated_by)
+                   VALUES(?,?,?,?,?)
+                   ON CONFLICT(name) DO UPDATE SET nonce=excluded.nonce,
+                   encrypted_value=excluded.encrypted_value,updated_at=excluded.updated_at,
+                   updated_by=excluded.updated_by""",
+                (UPDATE_TOKEN_SETTING, nonce, encrypted, _utc_now().isoformat(), actor.username),
+            )
+            db.commit()
+        self._audit(actor.username, "save_update_token", True, "DB 암호화 저장")
+
+    def load_update_token(self) -> str:
+        self._require_roles("admin", "operator")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT nonce,encrypted_value FROM secure_settings WHERE name=?",
+                (UPDATE_TOKEN_SETTING,),
+            ).fetchone()
+        if row is None:
+            raise ValueError("관리자 DB에 공용 업데이트 자격 증명이 없습니다.")
+        try:
+            token = AESGCM(self._update_token_key()).decrypt(
+                bytes(row[0]), bytes(row[1]), UPDATE_TOKEN_AAD
+            ).decode("utf-8").strip()
+        except Exception as exc:
+            raise ValueError("관리자 DB의 업데이트 자격 증명을 복호화할 수 없습니다.") from exc
+        if not token:
+            raise ValueError("관리자 DB의 업데이트 자격 증명이 비어 있습니다.")
+        return token
 
     def _require_roles(self, *roles: str) -> AuthenticatedUser:
         if not self._current_user or self._current_user.role not in roles:

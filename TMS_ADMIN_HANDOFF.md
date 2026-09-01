@@ -1,8 +1,17 @@
 # Cinema TMS Admin — 작업 인수인계
 
 최종 갱신: 2026-09-02
-기준 소스: **v1.6.0 Beta 2**
+기준 소스: **v1.6.0 Beta 3**
 실제 작업 경로: `D:\Codex\Cinema_Tms_Admin`
+
+## 1.6.0 Beta 3 자동 업데이트 자격 증명 DB 이전
+
+- 공용 읽기 전용 PAT는 `licenses.db.secure_settings`에 AES-GCM 암호문으로 저장한다.
+- AES 키는 로그인으로 해제된 Ed25519 발급키에서 HKDF-SHA256의 업데이트 전용 컨텍스트로 파생한다. DB만 보유하거나 소스만 보유해서는 토큰을 복호화할 수 없다.
+- 기존 `data/github-update-token.dpapi`가 있으면 관리자 로그인 직후 DB 저장과 재복호화 검증을 마친 뒤 파일을 제거한다.
+- VBS에서 실행한 라이선스 관리자 온라인 업데이트와 라이선스 발급은 DB 토큰을 자동 사용한다. GitHub 로그인 및 토큰 입력 UI는 없다.
+- TMS에는 토큰 원문이 아니라 `.tmshw` 공개키에 맞춰 재암호화한 `update_credential`만 서명 라이선스에 포함한다.
+- 보안 저장 흐름 보완이므로 PATCH로 분류해 `1.6.0b3`으로 올렸다.
 
 ## 1.6.0 Beta 2 로컬 GitHub 게시 인수인계
 
@@ -12,7 +21,7 @@
 
 ## 1.6.0 Beta 1 공용 업데이트 토큰 인수인계
 
-- 공용 읽기 전용 PAT는 관리자 PC의 `data/github-update-token.dpapi`에 Windows 현재 사용자 DPAPI로 저장하며 소스·설치본·DB에는 포함하지 않는다.
+- 공용 읽기 전용 PAT는 관리자 DB에 로그인 발급키 기반 암호문으로 저장하며 소스·설치본에는 포함하지 않는다.
 - `.tmshw` 스키마 2의 X25519 공개키를 사용해 토큰을 장비별로 암호화하고, 라이선스 스키마 4의 서명 payload에 넣는다.
 - `licenses.db`에는 발급 당시 공개키만 저장한다. 기존 요청 스키마 1은 이력 조회 호환만 하며 자동 토큰 발급에는 최신 `.tmshw`가 필요하다.
 - 토큰 교체·폐기 후에는 관리자에서 새 토큰을 설정하고 대상 장비 라이선스를 재발급해야 한다.
@@ -27,9 +36,9 @@
 
 ## 1.5.0 Beta 1 비공개 GitHub 온라인 업데이트
 
-- 관리자 계정만 `온라인 업데이트`와 `GitHub 토큰 설정`을 사용할 수 있다.
+- 관리자 계정만 `온라인 업데이트`를 사용할 수 있으며 토큰 입력 UI는 제공하지 않는다.
 - `license_admin/github_updates.py`가 `Seikoz/Cinema-Tms-Admin` 비공개 Release의 업데이트 ZIP과 SHA-256을 인증 다운로드하고 검증한다.
-- Fine-grained PAT는 해당 저장소의 Contents 읽기 권한만 부여하며 `data/github-update-token.dpapi`에 Windows 현재 사용자 귀속 DPAPI로 저장한다. 토큰은 배포 파일이나 `licenses.db`에 넣지 않는다.
+- Fine-grained PAT는 해당 저장소의 Contents 읽기 권한만 부여하며 `licenses.db`에는 로그인 발급키 기반 AES-GCM 암호문만 저장한다.
 - `.github/workflows/publish-update.yml`은 앱 버전과 일치하는 `v*` 태그에서 Release와 자산을 생성한다.
 - 실제 온라인 업데이트 기능 추가이므로 `MINOR`로 분류해 `1.5.0b1`로 올렸다.
 
@@ -73,7 +82,7 @@ git pull --ff-only origin main
 
 - 관리자 계정만 상단 `파일 업데이트` 버튼을 사용할 수 있습니다.
 - `온라인 업데이트`는 관리자 계정에서만 활성화되며 비공개 GitHub Release를 사용합니다.
-- `GitHub 토큰 설정`으로 저장소 읽기 전용 토큰을 PC별로 암호화 저장합니다.
+- 저장소 읽기 전용 토큰은 관리자 DB 암호문에서 로그인 후 자동으로 사용합니다.
 - 업데이트 패키지 빌더는 `deployment\build-update-package.ps1`, 적용기는 `deployment\apply-update.ps1`입니다.
 - 기준 파일 목록 없이 만들면 전체 프로그램 업데이트, `-BaselineManifestPath`를 지정하면 변경 파일만 포함하는 증분 업데이트가 생성됩니다.
 - 업데이트 대상은 `license_admin`, `deployment`, `docs`와 프로그램 루트 문서로 제한됩니다.

@@ -22,7 +22,7 @@ from license_admin.version import __version__ as APP_VERSION
 from license_admin.core import LegacyKeyMigrationRequired, LicenseAuthority, extended_license_expiry, read_hardware_request
 from license_admin.github_updates import (
     GitHubAuthenticationRequired, GitHubUpdateError, UpdateRelease,
-    check_for_update, download_update, load_update_token, save_update_token,
+    check_for_update, download_update, load_update_token,
 )
 from license_admin.windows_ime import WindowsImeEntry
 
@@ -145,8 +145,6 @@ class LicenseManager(tk.Tk):
         self.logout_button.pack(side="right")
         self.online_update_button = ttk.Button(authority, text="온라인 업데이트", command=self.online_update)
         self.online_update_button.pack(side="right", padx=6)
-        self.token_button = ttk.Button(authority, text="공용 업데이트 토큰 설정", command=self.configure_update_token)
-        self.token_button.pack(side="right", padx=6)
         self.update_button = ttk.Button(authority, text="파일 업데이트", command=self.install_update)
         self.update_button.pack(side="right", padx=6)
         self.password_button = ttk.Button(authority, text="비밀번호 변경", command=self.change_password)
@@ -276,41 +274,12 @@ class LicenseManager(tk.Tk):
             return
         self.online_update_button.configure(state="disabled")
         try:
-            token = os.getenv("TMS_ADMIN_GITHUB_TOKEN", "").strip() or load_update_token(UPDATE_TOKEN_PATH)
-        except GitHubUpdateError as exc:
+            token = self.authority.load_update_token()
+        except (GitHubUpdateError, ValueError) as exc:
             self.finish_online_update_error(str(exc))
-            return
-        if not token:
-            self.configure_update_token(check_after_save=True)
             return
         self.status.set("비공개 GitHub Release에서 새 버전 확인 중")
         threading.Thread(target=self.online_update_check_worker, args=(token,), daemon=True).start()
-
-    def configure_update_token(self, check_after_save=False):
-        token = simpledialog.askstring(
-            "Cinema TMS Admin GitHub 토큰",
-            "Seikoz/Cinema-Tms-Updates 비공개 저장소를 읽을 수 있는 공용 Fine-grained PAT를 입력하세요.\n"
-            "Repository access: Cinema-Tms-Updates / Contents: Read-only\n\n"
-            "토큰은 현재 Windows 사용자 범위로 암호화 저장되며, 새 라이선스에 장비별로 다시 암호화됩니다.",
-            show="●", parent=self,
-        )
-        if token is None:
-            self._refresh_permissions()
-            return
-        try:
-            save_update_token(UPDATE_TOKEN_PATH, token)
-        except GitHubUpdateError as exc:
-            self.finish_online_update_error(str(exc))
-            return
-        if check_after_save:
-            self.online_update()
-        else:
-            self._refresh_permissions()
-            messagebox.showinfo(
-                "라이선스 관리자 업데이트",
-                "공용 GitHub 읽기 전용 토큰을 암호화하여 저장했습니다.\n새 라이선스 발급 및 관리자 업데이트에 자동 사용됩니다.",
-                parent=self,
-            )
 
     def online_update_check_worker(self, token: str):
         try:
@@ -324,9 +293,9 @@ class LicenseManager(tk.Tk):
         self.after(0, lambda: self.confirm_online_update(release, token))
 
     def retry_online_update_authentication(self, message: str):
-        UPDATE_TOKEN_PATH.unlink(missing_ok=True)
-        messagebox.showwarning("라이선스 관리자 업데이트", message, parent=self)
-        self.configure_update_token(check_after_save=True)
+        self.finish_online_update_error(
+            message + "\n\n관리자 DB의 공용 업데이트 자격 증명을 갱신해야 합니다."
+        )
 
     def confirm_online_update(self, release: UpdateRelease | None, token: str):
         if release is None:
@@ -449,6 +418,7 @@ class LicenseManager(tk.Tk):
                 return False
             try:
                 user = self.authority.authenticate(dialog.result["username"], dialog.result["password"])
+                self.migrate_legacy_update_token()
                 self.status.set(f"{user.username} · {ROLE_LABELS.get(user.role, user.role)}")
                 return True
             except Exception as exc:
@@ -485,7 +455,18 @@ class LicenseManager(tk.Tk):
         self.audit_button.configure(state="normal" if role == "admin" else "disabled")
         self.update_button.configure(state="normal" if role == "admin" else "disabled")
         self.online_update_button.configure(state="normal" if role == "admin" else "disabled")
-        self.token_button.configure(state="normal" if role == "admin" else "disabled")
+
+    def migrate_legacy_update_token(self):
+        user = self.authority.current_user
+        if not user or user.role != "admin" or not UPDATE_TOKEN_PATH.is_file():
+            return
+        try:
+            if not self.authority.has_update_token():
+                self.authority.save_update_token(load_update_token(UPDATE_TOKEN_PATH))
+            self.authority.load_update_token()
+            UPDATE_TOKEN_PATH.unlink()
+        except (GitHubUpdateError, OSError, ValueError) as exc:
+            raise ValueError(f"기존 공용 업데이트 토큰을 관리자 DB로 이전하지 못했습니다: {exc}") from exc
 
     def change_password(self):
         dialog = FormDialog(
@@ -657,16 +638,9 @@ class LicenseManager(tk.Tk):
             )
             return
         try:
-            update_token = os.getenv("TMS_ADMIN_GITHUB_TOKEN", "").strip() or load_update_token(UPDATE_TOKEN_PATH)
-        except GitHubUpdateError as exc:
+            update_token = self.authority.load_update_token()
+        except (GitHubUpdateError, ValueError) as exc:
             messagebox.showerror("라이선스 관리", str(exc), parent=self)
-            return
-        if not update_token:
-            messagebox.showwarning(
-                "라이선스 관리",
-                "공용 업데이트 토큰을 먼저 설정하세요.\n상단의 공용 업데이트 토큰 설정 버튼을 사용하세요.",
-                parent=self,
-            )
             return
         destination = filedialog.asksaveasfilename(
             defaultextension=".tmslic", initialfile=f"{self.cinema.get().strip() or 'cinema-tms'}.tmslic",

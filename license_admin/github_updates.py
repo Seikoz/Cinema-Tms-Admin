@@ -73,7 +73,7 @@ def _open(request: Request, timeout: int = 30):
     except HTTPError as exc:
         if exc.code in {401, 403, 404}:
             raise GitHubAuthenticationRequired(
-                "GitHub Release에 접근할 수 없습니다. Cinema-Tms-Admin 저장소의 Contents 읽기 권한이 있는 토큰을 입력하세요."
+                "GitHub Release에 접근할 수 없습니다. 관리자 DB의 공용 업데이트 자격 증명을 갱신해야 합니다."
             ) from exc
         raise GitHubUpdateError(f"GitHub가 HTTP {exc.code} 오류를 반환했습니다.") from exc
     except (URLError, OSError) as exc:

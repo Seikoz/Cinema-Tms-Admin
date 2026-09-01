@@ -25,7 +25,7 @@ from license_admin.update_credentials import encrypt_update_token
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.6.0b2")
+        self.assertEqual(__version__, "1.6.0b3")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -163,8 +163,10 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         publisher = (Path(__file__).parents[1] / "deployment" / "publish-github-update.ps1").read_text(encoding="utf-8-sig")
         builder = (Path(__file__).parents[1] / "deployment" / "build-update-package.ps1").read_text(encoding="utf-8-sig")
         self.assertIn('text="온라인 업데이트", command=self.online_update', source)
-        self.assertIn('text="공용 업데이트 토큰 설정", command=self.configure_update_token', source)
+        self.assertNotIn('text="공용 업데이트 토큰 설정"', source)
+        self.assertNotIn("configure_update_token", source)
         self.assertIn('text="파일 업데이트", command=self.install_update', source)
+        self.assertIn("token = self.authority.load_update_token()", source)
         self.assertIn('check_for_update(APP_VERSION, token)', source)
         self.assertIn('download_update(release, PROJECT_ROOT / "data" / "updates", token)', source)
         self.assertIn('DEFAULT_REPOSITORY = "Seikoz/Cinema-Tms-Updates"', github)
@@ -176,6 +178,38 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         self.assertIn('Seikoz/Cinema-Tms-Updates', publisher)
         self.assertIn('admin-v$version', publisher)
         self.assertFalse((Path(__file__).parents[1] / ".github" / "workflows" / "publish-update.yml").exists())
+
+    def test_update_token_is_portably_encrypted_in_database(self):
+        token = "github_pat_private_reader_value"
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            public_pem = self.make_legacy_authority(root)
+            with patch("license_admin.core.TRUSTED_PUBLIC_KEY_PEM", public_pem):
+                authority = LicenseAuthority(root)
+                authority.authenticate("admin", "secret")
+                authority.save_update_token(token)
+                self.assertEqual(authority.load_update_token(), token)
+                self.assertNotIn(token.encode("utf-8"), authority.database_path.read_bytes())
+
+                authority.change_password("secret", "changed")
+                authority.logout()
+                authority.authenticate("admin", "changed")
+                self.assertEqual(authority.load_update_token(), token)
+
+    def test_operator_can_use_but_only_admin_can_replace_update_token(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            public_pem = self.make_legacy_authority(root)
+            with patch("license_admin.core.TRUSTED_PUBLIC_KEY_PEM", public_pem):
+                authority = LicenseAuthority(root)
+                authority.authenticate("admin", "secret")
+                authority.save_update_token("reader-token")
+                authority.create_user("operator", "operator-password", "operator")
+                authority.logout()
+                authority.authenticate("operator", "operator-password")
+                self.assertEqual(authority.load_update_token(), "reader-token")
+                with self.assertRaisesRegex(ValueError, "권한"):
+                    authority.save_update_token("replacement")
 
     def test_default_database_is_inside_admin_project(self):
         from license_admin.core import DEFAULT_DATA_DIR
