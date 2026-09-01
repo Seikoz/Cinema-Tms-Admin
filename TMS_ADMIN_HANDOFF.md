@@ -1,8 +1,16 @@
 # Cinema TMS Admin — 작업 인수인계
 
 최종 갱신: 2026-08-30
-기준 소스: **v1.4.0 Beta 4**
+기준 소스: **v1.5.0 Beta 1**
 실제 작업 경로: `D:\Codex\Cinema_Tms_Admin`
+
+## 1.5.0 Beta 1 비공개 GitHub 온라인 업데이트
+
+- 관리자 계정만 `온라인 업데이트`와 `GitHub 토큰 설정`을 사용할 수 있다.
+- `license_admin/github_updates.py`가 `Seikoz/Cinema-Tms-Admin` 비공개 Release의 업데이트 ZIP과 SHA-256을 인증 다운로드하고 검증한다.
+- Fine-grained PAT는 해당 저장소의 Contents 읽기 권한만 부여하며 `data/github-update-token.dpapi`에 Windows 현재 사용자 귀속 DPAPI로 저장한다. 토큰은 배포 파일이나 `licenses.db`에 넣지 않는다.
+- `.github/workflows/publish-update.yml`은 앱 버전과 일치하는 `v*` 태그에서 Release와 자산을 생성한다.
+- 실제 온라인 업데이트 기능 추가이므로 `MINOR`로 분류해 `1.5.0b1`로 올렸다.
 
 ## GitHub 기준 소스
 
@@ -43,8 +51,8 @@ git pull --ff-only origin main
 ## 프로그램 업데이트
 
 - 관리자 계정만 상단 `파일 업데이트` 버튼을 사용할 수 있습니다.
-- `온라인 업데이트 (준비 중)` 버튼은 비활성화 상태로 두며 향후 GitHub 배포 연결 시 사용합니다.
-- 온라인 업데이트 기능을 제거한 것이 아니며 사용자에게 아직 사용할 수 없는 상태임을 명확히 표시합니다.
+- `온라인 업데이트`는 관리자 계정에서만 활성화되며 비공개 GitHub Release를 사용합니다.
+- `GitHub 토큰 설정`으로 저장소 읽기 전용 토큰을 PC별로 암호화 저장합니다.
 - 업데이트 패키지 빌더는 `deployment\build-update-package.ps1`, 적용기는 `deployment\apply-update.ps1`입니다.
 - 기준 파일 목록 없이 만들면 전체 프로그램 업데이트, `-BaselineManifestPath`를 지정하면 변경 파일만 포함하는 증분 업데이트가 생성됩니다.
 - 업데이트 대상은 `license_admin`, `deployment`, `docs`와 프로그램 루트 문서로 제한됩니다.

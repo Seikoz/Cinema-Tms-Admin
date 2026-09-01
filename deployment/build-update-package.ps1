@@ -6,7 +6,11 @@ param(
 $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $python = Join-Path $projectRoot ".python\python.exe"
-if (-not (Test-Path -LiteralPath $python)) { throw "Cinema TMS project runtime is required." }
+if (-not (Test-Path -LiteralPath $python)) {
+    $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+    if (-not $pythonCommand) { throw "Python runtime is required." }
+    $python = $pythonCommand.Source
+}
 $version = (& $python -c "from license_admin.version import __version__; print(__version__)" | Select-Object -Last 1).Trim()
 $product = "cinema-tms-admin"
 $packageName = "Cinema-TMS-Admin-Update-$version"
@@ -64,7 +68,10 @@ try {
     $zip = Join-Path ([IO.Path]::GetFullPath($OutputDirectory)) ($packageName + ".zip")
     if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
     Compress-Archive -LiteralPath $packageRoot -DestinationPath $zip -CompressionLevel Optimal
+    $checksum = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$checksum  $([IO.Path]::GetFileName($zip))" | Set-Content -LiteralPath ($zip + ".sha256") -Encoding ascii
     Write-Host "Cinema TMS Admin update package created: $zip"
+    Write-Host "SHA-256: $checksum"
     Write-Host "Changed files: $($changed.Count); removed files: $($removed.Count); data and settings included: False"
 } finally {
     $resolvedTemporary = [IO.Path]::GetFullPath($temporaryRoot)

@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import tkinter as tk
 import traceback
 from datetime import date, datetime, timedelta, timezone
@@ -19,6 +20,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from license_admin.version import __version__ as APP_VERSION
 from license_admin.core import LegacyKeyMigrationRequired, LicenseAuthority, extended_license_expiry, read_hardware_request
+from license_admin.github_updates import (
+    GitHubAuthenticationRequired, GitHubUpdateError, UpdateRelease,
+    check_for_update, download_update, load_update_token, save_update_token,
+)
 from license_admin.windows_ime import WindowsImeEntry
 
 
@@ -27,6 +32,7 @@ ACTION_LABELS = {"issue": "신규 발급", "renewal": "갱신"}
 LICENSE_STATUS_LABELS = {"active": "활성", "renewed": "갱신됨", "revoked": "폐기"}
 ERROR_LOG_PATH = PROJECT_ROOT / "data" / "admin-error.log"
 UPDATE_RESULT_PATH = PROJECT_ROOT / "data" / "last-update-result.json"
+UPDATE_TOKEN_PATH = PROJECT_ROOT / "data" / "github-update-token.dpapi"
 KST = timezone(timedelta(hours=9))
 
 
@@ -136,8 +142,10 @@ class LicenseManager(tk.Tk):
         ttk.Label(authority, text="발급 권한은 암호화된 관리자 DB와 로그인 계정으로 관리됩니다.").pack(side="left")
         self.logout_button = ttk.Button(authority, text="로그아웃", command=self.logout)
         self.logout_button.pack(side="right")
-        self.online_update_button = ttk.Button(authority, text="온라인 업데이트 (준비 중)", state="disabled")
+        self.online_update_button = ttk.Button(authority, text="온라인 업데이트", command=self.online_update)
         self.online_update_button.pack(side="right", padx=6)
+        self.token_button = ttk.Button(authority, text="GitHub 토큰 설정", command=self.configure_update_token)
+        self.token_button.pack(side="right", padx=6)
         self.update_button = ttk.Button(authority, text="파일 업데이트", command=self.install_update)
         self.update_button.pack(side="right", padx=6)
         self.password_button = ttk.Button(authority, text="비밀번호 변경", command=self.change_password)
@@ -258,6 +266,94 @@ class LicenseManager(tk.Tk):
             parent=self,
         ):
             return
+        self.launch_update_package(Path(package))
+
+    def online_update(self):
+        user = self.authority.current_user
+        if not user or user.role != "admin":
+            messagebox.showwarning("라이선스 관리자 업데이트", "관리자 계정만 프로그램을 업데이트할 수 있습니다.", parent=self)
+            return
+        self.online_update_button.configure(state="disabled")
+        try:
+            token = os.getenv("TMS_ADMIN_GITHUB_TOKEN", "").strip() or load_update_token(UPDATE_TOKEN_PATH)
+        except GitHubUpdateError as exc:
+            self.finish_online_update_error(str(exc))
+            return
+        if not token:
+            self.configure_update_token(check_after_save=True)
+            return
+        self.status.set("비공개 GitHub Release에서 새 버전 확인 중")
+        threading.Thread(target=self.online_update_check_worker, args=(token,), daemon=True).start()
+
+    def configure_update_token(self, check_after_save=False):
+        token = simpledialog.askstring(
+            "Cinema TMS Admin GitHub 토큰",
+            "Seikoz/Cinema-Tms-Admin 비공개 저장소를 읽을 수 있는 Fine-grained PAT를 입력하세요.\n"
+            "Repository access: Cinema-Tms-Admin / Contents: Read-only\n\n"
+            "토큰은 현재 Windows 사용자 범위로 암호화 저장됩니다.",
+            show="●", parent=self,
+        )
+        if token is None:
+            self._refresh_permissions()
+            return
+        try:
+            save_update_token(UPDATE_TOKEN_PATH, token)
+        except GitHubUpdateError as exc:
+            self.finish_online_update_error(str(exc))
+            return
+        if check_after_save:
+            self.online_update()
+        else:
+            self._refresh_permissions()
+            messagebox.showinfo("라이선스 관리자 업데이트", "GitHub 읽기 전용 토큰을 암호화하여 저장했습니다.", parent=self)
+
+    def online_update_check_worker(self, token: str):
+        try:
+            release = check_for_update(APP_VERSION, token)
+        except GitHubAuthenticationRequired as exc:
+            self.after(0, lambda message=str(exc): self.retry_online_update_authentication(message))
+            return
+        except GitHubUpdateError as exc:
+            self.after(0, lambda message=str(exc): self.finish_online_update_error(message))
+            return
+        self.after(0, lambda: self.confirm_online_update(release, token))
+
+    def retry_online_update_authentication(self, message: str):
+        UPDATE_TOKEN_PATH.unlink(missing_ok=True)
+        messagebox.showwarning("라이선스 관리자 업데이트", message, parent=self)
+        self.configure_update_token(check_after_save=True)
+
+    def confirm_online_update(self, release: UpdateRelease | None, token: str):
+        if release is None:
+            self._refresh_permissions()
+            messagebox.showinfo("라이선스 관리자 업데이트", f"현재 v{APP_VERSION}가 최신 버전입니다.", parent=self)
+            return
+        detail = f"현재 버전: v{APP_VERSION}\n새 버전: v{release.version}"
+        if release.published_at:
+            detail += f"\n게시 시각: {release.published_at}"
+        if not messagebox.askyesno(
+            "라이선스 관리자 업데이트",
+            detail + "\n\n비공개 GitHub Release에서 검증된 업데이트를 받아 설치하시겠습니까?\n계정, 발급키와 라이선스 이력은 유지됩니다.",
+            parent=self,
+        ):
+            self._refresh_permissions()
+            return
+        self.status.set(f"v{release.version} 다운로드 및 SHA-256 검증 중")
+        threading.Thread(target=self.online_update_download_worker, args=(release, token), daemon=True).start()
+
+    def online_update_download_worker(self, release: UpdateRelease, token: str):
+        try:
+            package = download_update(release, PROJECT_ROOT / "data" / "updates", token)
+        except GitHubUpdateError as exc:
+            self.after(0, lambda message=str(exc): self.finish_online_update_error(message))
+            return
+        self.after(0, lambda: self.launch_update_package(package))
+
+    def finish_online_update_error(self, message: str):
+        self._refresh_permissions()
+        messagebox.showerror("라이선스 관리자 온라인 업데이트", message, parent=self)
+
+    def launch_update_package(self, package: Path):
         updater = PROJECT_ROOT / "deployment" / "apply-update.ps1"
         powershell = Path(os.environ.get("WINDIR", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
         if not updater.is_file() or not powershell.is_file():
@@ -266,7 +362,7 @@ class LicenseManager(tk.Tk):
         self.authority.logout()
         command = [
             str(powershell), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(updater),
-            "-PackagePath", package, "-ProjectRoot", str(PROJECT_ROOT),
+            "-PackagePath", str(package), "-ProjectRoot", str(PROJECT_ROOT),
             "-WaitForProcessId", str(os.getpid()), "-Relaunch",
         ]
         try:
@@ -382,7 +478,8 @@ class LicenseManager(tk.Tk):
         self.accounts_button.configure(state="normal" if role == "admin" else "disabled")
         self.audit_button.configure(state="normal" if role == "admin" else "disabled")
         self.update_button.configure(state="normal" if role == "admin" else "disabled")
-        self.online_update_button.configure(state="disabled")
+        self.online_update_button.configure(state="normal" if role == "admin" else "disabled")
+        self.token_button.configure(state="normal" if role == "admin" else "disabled")
 
     def change_password(self):
         dialog = FormDialog(

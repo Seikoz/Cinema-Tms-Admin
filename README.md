@@ -1,6 +1,14 @@
-# Cinema TMS Admin 1.4.0 Beta 4
+# Cinema TMS Admin 1.5.0 Beta 1
 
-## 온라인 업데이트 준비 중 표시
+## 비공개 GitHub 온라인 업데이트
+
+- 관리자 계정에서 `온라인 업데이트`와 `GitHub 토큰 설정`을 사용할 수 있습니다.
+- `Seikoz/Cinema-Tms-Admin` 비공개 저장소의 Release에서 업데이트 ZIP과 SHA-256을 인증 다운로드합니다.
+- 저장소 Contents 읽기 전용 Fine-grained PAT는 현재 Windows 사용자 범위의 DPAPI로 암호화하며 설치본이나 관리자 DB에 포함하지 않습니다.
+- 계정, 암호화된 발급키, 발급·감사 이력은 업데이트 후에도 유지됩니다.
+- 앱 버전과 동일한 `v*` 태그가 푸시되면 GitHub Actions가 Release 자산을 자동 게시합니다.
+
+## 1.4.0 Beta 4 온라인 업데이트 준비 중 표시
 
 - 기존 ZIP 기반 프로그램 업데이트는 `파일 업데이트`로 이름을 명확히 했습니다.
 - 별도의 `온라인 업데이트 (준비 중)` 버튼을 추가하고 비활성화했습니다.
@@ -76,10 +84,11 @@ git clone https://github.com/Seikoz/Cinema-Tms-Admin.git Cinema_Tms_Admin
 git pull --ff-only origin main
 ```
 
-## 오프라인 프로그램 업데이트
+## 프로그램 업데이트
 
 - 관리자 계정으로 로그인한 뒤 `파일 업데이트` 버튼에서 `Cinema-TMS-Admin-Update-*.zip`을 선택합니다.
-- `온라인 업데이트 (준비 중)`은 배포 경로가 확정될 때까지 비활성화되어 있습니다.
+- `온라인 업데이트`는 비공개 GitHub Release를 조회하며 관리자 계정과 저장소 읽기 전용 토큰이 필요합니다.
+- `GitHub 토큰 설정`에서 PC별 토큰을 입력하면 현재 Windows 사용자 범위로 암호화 저장됩니다.
 - `data\licenses.db`, 로그인 계정, 발급키와 감사 이력은 업데이트 대상에서 제외됩니다.
 - 변경 전 프로그램 파일을 `data\update-backups`에 백업하고 실패 시 자동 복원합니다.
 - `deployment\build-update-package.ps1`에 이전 파일 목록을 지정하면 변경된 부분만 포함하는 증분 업데이트를 만들 수 있습니다.

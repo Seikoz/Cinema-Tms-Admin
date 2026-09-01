@@ -22,7 +22,7 @@ from license_admin.version import __version__
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.4.0b4")
+        self.assertEqual(__version__, "1.5.0b1")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -142,11 +142,20 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         self.assertIn("def install_update", manager_source)
         self.assertIn("관리자 계정, 발급키, 라이선스 이력 DB는 그대로 유지", manager_source)
 
-    def test_online_update_is_preserved_as_a_disabled_preparing_button(self):
+    def test_online_update_supports_private_github_releases(self):
         source = (Path(__file__).parents[1] / "license_admin" / "manager.pyw").read_text(encoding="utf-8")
-        self.assertIn('text="온라인 업데이트 (준비 중)", state="disabled"', source)
+        github = (Path(__file__).parents[1] / "license_admin" / "github_updates.py").read_text(encoding="utf-8")
+        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "publish-update.yml").read_text(encoding="utf-8")
+        builder = (Path(__file__).parents[1] / "deployment" / "build-update-package.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn('text="온라인 업데이트", command=self.online_update', source)
+        self.assertIn('text="GitHub 토큰 설정", command=self.configure_update_token', source)
         self.assertIn('text="파일 업데이트", command=self.install_update', source)
-        self.assertIn('self.online_update_button.configure(state="disabled")', source)
+        self.assertIn('check_for_update(APP_VERSION, token)', source)
+        self.assertIn('download_update(release, PROJECT_ROOT / "data" / "updates", token)', source)
+        self.assertIn('DEFAULT_REPOSITORY = "Seikoz/Cinema-Tms-Admin"', github)
+        self.assertIn('CryptProtectData', github)
+        self.assertIn('$zip + ".sha256"', builder)
+        self.assertIn('gh release upload', workflow)
 
     def test_default_database_is_inside_admin_project(self):
         from license_admin.core import DEFAULT_DATA_DIR
