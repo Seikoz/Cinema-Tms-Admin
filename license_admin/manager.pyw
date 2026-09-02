@@ -153,6 +153,10 @@ class LicenseManager(tk.Tk):
         self.audit_button.pack(side="right", padx=6)
         self.accounts_button = ttk.Button(authority, text="계정 관리", command=self.manage_accounts)
         self.accounts_button.pack(side="right", padx=6)
+        self.update_credential_button = ttk.Button(
+            authority, text="업데이트 자격 증명", command=self.configure_update_credential
+        )
+        self.update_credential_button.pack(side="right", padx=6)
         ttk.Label(authority, textvariable=self.status).pack(side="right", padx=14)
 
         issue = ttk.LabelFrame(root, text="라이선스 발급", padding=12)
@@ -455,6 +459,9 @@ class LicenseManager(tk.Tk):
         self.audit_button.configure(state="normal" if role == "admin" else "disabled")
         self.update_button.configure(state="normal" if role == "admin" else "disabled")
         self.online_update_button.configure(state="normal" if role == "admin" else "disabled")
+        self.update_credential_button.configure(state="normal" if role == "admin" else "disabled")
+        credential_label = "업데이트 자격 증명 변경" if self.authority.has_update_token() else "업데이트 자격 증명 등록"
+        self.update_credential_button.configure(text=credential_label)
 
     def migrate_legacy_update_token(self):
         user = self.authority.current_user
@@ -467,6 +474,34 @@ class LicenseManager(tk.Tk):
             UPDATE_TOKEN_PATH.unlink()
         except (GitHubUpdateError, OSError, ValueError) as exc:
             raise ValueError(f"기존 공용 업데이트 토큰을 관리자 DB로 이전하지 못했습니다: {exc}") from exc
+
+    def configure_update_credential(self):
+        user = self.authority.current_user
+        if not user or user.role != "admin":
+            messagebox.showwarning("업데이트 자격 증명", "관리자 계정만 자격 증명을 변경할 수 있습니다.", parent=self)
+            return
+        dialog = FormDialog(
+            self,
+            "업데이트 자격 증명 등록",
+            [("token", "읽기 전용 GitHub 토큰", True, "")],
+            note=(
+                "Seikoz/Cinema-Tms-Updates 저장소에만 접근할 수 있고 Contents 읽기 권한만 가진 "
+                "Fine-grained PAT를 입력하세요. 자격 증명은 관리자 DB에 암호화되어 저장됩니다."
+            ),
+        )
+        if not dialog.result:
+            return
+        try:
+            self.authority.save_update_token(dialog.result["token"])
+            self.authority.load_update_token()
+            self._refresh_permissions()
+            messagebox.showinfo(
+                "업데이트 자격 증명",
+                "공용 업데이트 자격 증명을 관리자 DB에 암호화하여 저장했습니다.",
+                parent=self,
+            )
+        except (GitHubUpdateError, ValueError) as exc:
+            messagebox.showerror("업데이트 자격 증명", str(exc), parent=self)
 
     def change_password(self):
         dialog = FormDialog(
@@ -637,11 +672,19 @@ class LicenseManager(tk.Tk):
                 parent=self,
             )
             return
+        credential_public_key = self.update_public_key
         try:
             update_token = self.authority.load_update_token()
         except (GitHubUpdateError, ValueError) as exc:
-            messagebox.showerror("라이선스 관리", str(exc), parent=self)
-            return
+            if not messagebox.askyesno(
+                "업데이트 자격 증명 없음",
+                f"{exc}\n\n자동 업데이트 기능 없이 라이선스를 발급하시겠습니까?\n"
+                "TMS의 나머지 기능과 파일 업데이트는 계속 사용할 수 있습니다.",
+                parent=self,
+            ):
+                return
+            update_token = ""
+            credential_public_key = ""
         destination = filedialog.asksaveasfilename(
             defaultextension=".tmslic", initialfile=f"{self.cinema.get().strip() or 'cinema-tms'}.tmslic",
             filetypes=[("Cinema TMS 라이선스", "*.tmslic")],
@@ -654,11 +697,16 @@ class LicenseManager(tk.Tk):
                 valid_from=date.fromisoformat(self.valid_from.get()), expires_on=date.fromisoformat(self.expires_on.get()),
                 auditorium_limit=self.auditorium_limit.get(), destination=Path(destination),
                 supersedes=supersedes or self.rebind_supersedes,
-                update_public_key=self.update_public_key, update_token=update_token,
+                update_public_key=credential_public_key, update_token=update_token,
             )
             self.rebind_supersedes = ""
             self.refresh_records()
-            messagebox.showinfo("라이선스 관리", f"라이선스를 발급했습니다.\n{envelope['payload']['license_id']}", parent=self)
+            update_note = "자동 업데이트 자격 증명 포함" if update_token else "자동 업데이트 자격 증명 제외"
+            messagebox.showinfo(
+                "라이선스 관리",
+                f"라이선스를 발급했습니다.\n{envelope['payload']['license_id']}\n{update_note}",
+                parent=self,
+            )
         except Exception as exc:
             messagebox.showerror("라이선스 관리", str(exc), parent=self)
 

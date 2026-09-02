@@ -1,4 +1,11 @@
-# Cinema TMS Admin 1.6.0 Beta 3
+# Cinema TMS Admin 1.6.0 Beta 4
+
+## 업데이트 자격 증명 복구 및 선택 발급
+
+- 관리자 계정에서 `업데이트 자격 증명 등록/변경` 버튼으로 읽기 전용 GitHub 토큰을 입력할 수 있습니다.
+- 입력한 토큰은 소스나 별도 파일이 아니라 `licenses.db`에 AES-GCM 암호문으로 저장됩니다.
+- 관리자 DB에 자격 증명이 없어도 확인 후 자동 업데이트 자격 증명을 제외한 라이선스를 발급할 수 있습니다.
+- 자동 업데이트를 포함하려면 `Seikoz/Cinema-Tms-Updates` 저장소의 Contents 읽기 권한만 가진 Fine-grained PAT를 등록합니다.
 
 ## 로그인 연동 자동 업데이트
 

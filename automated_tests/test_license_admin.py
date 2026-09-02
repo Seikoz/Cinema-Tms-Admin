@@ -25,7 +25,7 @@ from license_admin.update_credentials import encrypt_update_token
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.6.0b3")
+        self.assertEqual(__version__, "1.6.0b4")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -163,8 +163,9 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         publisher = (Path(__file__).parents[1] / "deployment" / "publish-github-update.ps1").read_text(encoding="utf-8-sig")
         builder = (Path(__file__).parents[1] / "deployment" / "build-update-package.ps1").read_text(encoding="utf-8-sig")
         self.assertIn('text="온라인 업데이트", command=self.online_update', source)
-        self.assertNotIn('text="공용 업데이트 토큰 설정"', source)
-        self.assertNotIn("configure_update_token", source)
+        self.assertIn('text="업데이트 자격 증명", command=self.configure_update_credential', source)
+        self.assertIn("self.authority.save_update_token(dialog.result[\"token\"])", source)
+        self.assertIn("자동 업데이트 기능 없이 라이선스를 발급하시겠습니까?", source)
         self.assertIn('text="파일 업데이트", command=self.install_update', source)
         self.assertIn("token = self.authority.load_update_token()", source)
         self.assertIn('check_for_update(APP_VERSION, token)', source)

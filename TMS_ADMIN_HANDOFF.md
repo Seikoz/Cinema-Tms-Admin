@@ -1,8 +1,15 @@
 # Cinema TMS Admin — 작업 인수인계
 
 최종 갱신: 2026-09-02
-기준 소스: **v1.6.0 Beta 3**
+기준 소스: **v1.6.0 Beta 4**
 실제 작업 경로: `D:\Codex\Cinema_Tms_Admin`
+
+## 1.6.0 Beta 4 업데이트 자격 증명 복구 UI
+
+- 관리자 계정에 `업데이트 자격 증명 등록/변경` 모달을 추가했다. 토큰은 화면에 다시 표시하지 않으며 기존과 동일하게 `licenses.db.secure_settings`에 암호화 저장한다.
+- 새 PC에서 Git 소스만 동기화해 자격 증명 DB 행이 없는 경우에도, 사용자가 확인하면 `update_credential`을 제외한 정상 라이선스를 발급할 수 있다.
+- 자동 업데이트를 포함하려면 `Seikoz/Cinema-Tms-Updates`에 한정된 Contents 읽기 전용 Fine-grained PAT를 모달에서 등록해야 한다.
+- 기존 기능의 복구 경로와 오류 처리를 보완한 PATCH이므로 `1.6.0b4`로 올렸다.
 
 ## 1.6.0 Beta 3 자동 업데이트 자격 증명 DB 이전
 
