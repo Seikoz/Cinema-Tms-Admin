@@ -7,6 +7,7 @@ __pycache__/
 
 # License authority data and secrets
 /data/
+/License_DB/
 *.db
 *.db-shm
 *.db-wal

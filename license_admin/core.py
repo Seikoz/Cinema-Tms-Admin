@@ -36,7 +36,9 @@ from license_admin.update_credentials import encrypt_update_token, validate_clie
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DATA_DIR = Path(os.getenv("CINEMA_TMS_ADMIN_DATA_DIR", str(PROJECT_ROOT / "data")))
+SHARED_DATA_DIR = PROJECT_ROOT / "License_DB"
+LEGACY_DATA_DIR = PROJECT_ROOT / "data"
+DEFAULT_DATA_DIR = Path(os.getenv("CINEMA_TMS_ADMIN_DATA_DIR", str(SHARED_DATA_DIR)))
 HARDWARE_KEY_PATTERN = re.compile(r"^[0-9A-F]{4}(?:-[0-9A-F]{4}){7}$")
 HARDWARE_KEY_DASHES = str.maketrans({"‐": "-", "‑": "-", "‒": "-", "–": "-", "—": "-", "−": "-"})
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]{3,40}$")
@@ -178,7 +180,47 @@ class LicenseAuthority:
         self.database_path = self.data_dir / "licenses.db"
         self._private_key: Ed25519PrivateKey | None = None
         self._current_user: AuthenticatedUser | None = None
+        self._migrate_legacy_default_database()
         self._prepare_database()
+
+    def _migrate_legacy_default_database(self) -> None:
+        """Seed the synchronized DB folder from the former local DB once.
+
+        SQLite's backup API creates a consistent snapshot even when the previous
+        manager process left WAL sidecars behind. The original is intentionally
+        retained as a local recovery copy and is never kept in sync afterwards.
+        """
+        if self.data_dir.resolve() != SHARED_DATA_DIR.resolve() or self.database_path.exists():
+            return
+        legacy_database = LEGACY_DATA_DIR / "licenses.db"
+        if not legacy_database.is_file():
+            return
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        temporary = self.data_dir / f".licenses-migration-{uuid.uuid4().hex}.db"
+        source = destination = None
+        try:
+            source = sqlite3.connect(
+                f"file:{legacy_database.resolve().as_posix()}?mode=ro", uri=True, timeout=15
+            )
+            integrity = source.execute("PRAGMA integrity_check").fetchone()
+            if not integrity or integrity[0] != "ok":
+                raise ValueError("기존 라이선스 관리자 DB의 무결성 검사에 실패했습니다.")
+            destination = sqlite3.connect(temporary, timeout=15)
+            source.backup(destination)
+            destination.commit()
+            destination.close()
+            destination = None
+            source.close()
+            source = None
+            os.replace(temporary, self.database_path)
+        except sqlite3.DatabaseError as exc:
+            raise ValueError("기존 라이선스 관리자 DB를 공용 폴더로 이전할 수 없습니다.") from exc
+        finally:
+            if destination is not None:
+                destination.close()
+            if source is not None:
+                source.close()
+            temporary.unlink(missing_ok=True)
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.database_path, timeout=15)

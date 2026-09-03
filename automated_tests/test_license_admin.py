@@ -4,6 +4,7 @@ import json
 import runpy
 import tempfile
 import unittest
+from contextlib import closing
 from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -25,7 +26,7 @@ from license_admin.update_credentials import encrypt_update_token
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.6.0b4")
+        self.assertEqual(__version__, "1.7.0b1")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -212,10 +213,36 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "권한"):
                     authority.save_update_token("replacement")
 
-    def test_default_database_is_inside_admin_project(self):
+    def test_default_database_is_in_synchronized_license_folder(self):
         from license_admin.core import DEFAULT_DATA_DIR
 
-        self.assertEqual(DEFAULT_DATA_DIR, Path(__file__).parents[1] / "data")
+        self.assertEqual(DEFAULT_DATA_DIR, Path(__file__).parents[1] / "License_DB")
+
+    def test_legacy_default_database_is_migrated_with_sqlite_backup(self):
+        import license_admin.core as core
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            legacy = root / "data"
+            shared = root / "License_DB"
+            legacy.mkdir()
+            with patch.object(core, "LEGACY_DATA_DIR", legacy), patch.object(core, "SHARED_DATA_DIR", shared):
+                original = LicenseAuthority(legacy)
+                with closing(original._connect()) as database:
+                    database.execute(
+                        "INSERT INTO audit_logs(created_at,action,success,detail) VALUES(?,?,?,?)",
+                        ("2026-09-03T00:00:00+00:00", "migration-test", 1, "shared-history"),
+                    )
+                    database.commit()
+                migrated = LicenseAuthority(shared)
+                with closing(migrated._connect()) as database:
+                    row = database.execute(
+                        "SELECT detail FROM audit_logs WHERE action='migration-test'"
+                    ).fetchone()
+
+            self.assertEqual(row[0], "shared-history")
+            self.assertTrue((legacy / "licenses.db").is_file())
+            self.assertTrue((shared / "licenses.db").is_file())
 
     def test_admin_runtime_does_not_reference_client_project(self):
         root = Path(__file__).parents[1]

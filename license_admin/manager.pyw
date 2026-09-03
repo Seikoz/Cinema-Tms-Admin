@@ -140,7 +140,10 @@ class LicenseManager(tk.Tk):
 
         authority = ttk.LabelFrame(root, text="로그인 계정 보안", padding=12)
         authority.pack(fill="x")
-        ttk.Label(authority, text="발급 권한은 암호화된 관리자 DB와 로그인 계정으로 관리됩니다.").pack(side="left")
+        ttk.Label(
+            authority,
+            text=f"공용 DB: {self.authority.database_path}",
+        ).pack(side="left")
         self.logout_button = ttk.Button(authority, text="로그아웃", command=self.logout)
         self.logout_button.pack(side="right")
         self.online_update_button = ttk.Button(authority, text="온라인 업데이트", command=self.online_update)

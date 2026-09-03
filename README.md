@@ -1,15 +1,23 @@
-# Cinema TMS Admin 1.6.0 Beta 4
+# Cinema TMS Admin 1.7.0 Beta 1
+
+## 두 관리자 PC 공용 라이선스 DB
+
+- 운영 DB는 NAS 동기화 전용 폴더인 `License_DB/licenses.db`에 저장합니다.
+- 이 DB 하나에 관리자 계정, 암호화된 발급키, 공용 업데이트 토큰, 발급 이력과 감사 로그가 함께 저장됩니다.
+- 이전 `data/licenses.db`만 있으면 다음 실행 시 SQLite 백업 API로 공용 폴더에 일관된 사본을 생성하고, 이전 파일은 복구용으로 남깁니다.
+- 한 PC에서 관리자를 완전히 종료하고 NAS 동기화가 끝난 뒤 다른 PC에서 실행해야 합니다. 두 PC에서 동시에 실행하거나 충돌본을 병합하면 안 됩니다.
+- `License_DB/`는 GitHub 소스와 배포 ZIP에 포함하지 않습니다.
 
 ## 업데이트 자격 증명 복구 및 선택 발급
 
 - 관리자 계정에서 `업데이트 자격 증명 등록/변경` 버튼으로 읽기 전용 GitHub 토큰을 입력할 수 있습니다.
-- 입력한 토큰은 소스나 별도 파일이 아니라 `licenses.db`에 AES-GCM 암호문으로 저장됩니다.
+- 입력한 토큰은 소스나 별도 파일이 아니라 `License_DB/licenses.db`에 AES-GCM 암호문으로 저장됩니다.
 - 관리자 DB에 자격 증명이 없어도 확인 후 자동 업데이트 자격 증명을 제외한 라이선스를 발급할 수 있습니다.
 - 자동 업데이트를 포함하려면 `Seikoz/Cinema-Tms-Updates` 저장소의 Contents 읽기 권한만 가진 Fine-grained PAT를 등록합니다.
 
 ## 로그인 연동 자동 업데이트
 
-- 공용 읽기 전용 토큰은 `licenses.db`에 AES-GCM 암호문으로 저장되며 로그인으로 해제된 발급키를 통해서만 사용할 수 있습니다.
+- 공용 읽기 전용 토큰은 `License_DB/licenses.db`에 AES-GCM 암호문으로 저장되며 로그인으로 해제된 발급키를 통해서만 사용할 수 있습니다.
 - 기존 Windows DPAPI 토큰 파일은 다음 관리자 로그인 때 DB로 자동 이전되고 검증 후 삭제됩니다.
 - `온라인 업데이트`와 라이선스 발급은 DB 자격 증명을 자동 사용하므로 별도 GitHub 로그인이나 토큰 입력이 없습니다.
 - 관리자 DB와 계정을 다른 개발 PC로 이전해도 같은 로그인으로 업데이트 기능을 계속 사용할 수 있습니다.
@@ -109,7 +117,7 @@
 
 - 소스의 단일 원본은 비공개 GitHub 저장소 `https://github.com/Seikoz/Cinema-Tms-Admin`의 `main` 브랜치입니다.
 - Git에는 `license_admin`, `automated_tests`, `deployment`, `docs`와 프로젝트 문서만 저장합니다.
-- `data/licenses.db`, DB 백업, `.python`, `dist`, 개인키와 환경 파일은 `.gitignore`로 제외합니다. 특히 `data/licenses.db`는 암호화된 개인 발급키와 운영 계정을 포함하므로 GitHub에 업로드하지 않습니다.
+- `License_DB/`, `data/`, DB 백업, `.python`, `dist`, 개인키와 환경 파일은 `.gitignore`로 제외합니다. 특히 `License_DB/licenses.db`는 암호화된 개인 발급키와 운영 계정을 포함하므로 GitHub에 업로드하지 않습니다.
 - 다른 PC에서는 저장소를 Clone한 뒤 오프라인 런타임을 별도로 준비하고, 운영 DB는 프로그램을 완전히 종료한 상태에서 암호화된 별도 백업으로만 이전합니다.
 - 이 저장소에서 Codex가 작업할 때는 `AGENTS.md`에 따라 시작 시 원격 변경을 확인하고 깨끗한 작업 트리에서만 `pull --ff-only`를 실행하며, 테스트가 통과한 변경은 자동으로 커밋·`push origin main`까지 진행합니다.
 
@@ -123,7 +131,7 @@ git pull --ff-only origin main
 - 관리자 계정으로 로그인한 뒤 `파일 업데이트` 버튼에서 `Cinema-TMS-Admin-Update-*.zip`을 선택합니다.
 - `온라인 업데이트`는 비공개 GitHub Release를 조회하며 관리자 계정과 저장소 읽기 전용 토큰이 필요합니다.
 - 공용 읽기 자격 증명은 관리자 DB에서 자동 로드되며 업데이트 버튼에서 별도로 입력하지 않습니다.
-- `data\licenses.db`, 로그인 계정, 발급키와 감사 이력은 업데이트 대상에서 제외됩니다.
+- `License_DB\licenses.db`, 로그인 계정, 발급키와 감사 이력은 업데이트 대상에서 제외됩니다.
 - 변경 전 프로그램 파일을 `data\update-backups`에 백업하고 실패 시 자동 복원합니다.
 - `deployment\build-update-package.ps1`에 이전 파일 목록을 지정하면 변경된 부분만 포함하는 증분 업데이트를 만들 수 있습니다.
 
@@ -134,13 +142,13 @@ TMS에서 저장한 장비 변경 요청 `.tmshw` 파일을 불러오면 이전 
 ## 프로젝트 경계
 
 - 관리자 소스, 실행기, 빌더, 테스트, 배포 ZIP은 이 프로젝트에서만 관리합니다.
-- 암호화된 개인 발급키와 계정·발급 이력은 `data/licenses.db`에 저장합니다.
+- 암호화된 개인 발급키와 계정·발급 이력은 `License_DB/licenses.db`에 저장합니다.
 - `Cinema_Tms` 클라이언트 프로젝트에는 공개 검증키와 라이선스 검증 기능만 둡니다.
-- 관리자 배포 ZIP에는 실제 `data/licenses.db`를 포함하지 않습니다.
+- 관리자 배포 ZIP에는 실제 `License_DB/licenses.db`를 포함하지 않습니다.
 
 ## 클라우드 공유 DB
 
-- 관리자 DB는 프로젝트의 `data\licenses.db`에 저장합니다.
+- 관리자 DB는 프로젝트의 `License_DB\licenses.db`에 저장합니다.
 - 최초 실행은 이 PC에서 진행해 관리자 계정과 암호를 정하고, DPAPI 보호 발급키를 DB 암호화 형식으로 이전합니다.
 - 이후 프로젝트 폴더를 클라우드로 공유할 수 있지만, 관리자를 완전히 종료하고 동기화가 끝난 뒤 다른 PC에서 실행해야 합니다.
 - 두 PC에서 동시에 실행하거나 클라우드 충돌본을 병합하지 마세요.
@@ -159,4 +167,4 @@ powershell -ExecutionPolicy Bypass -File deployment\build-admin-package.ps1
 
 ## 중요
 
-`data/licenses.db`와 관리자 계정 비밀번호를 모두 잃으면 개인 발급키를 복구할 수 없습니다. DB는 암호화된 별도 매체에도 백업하세요.
+`License_DB/licenses.db`와 관리자 계정 비밀번호를 모두 잃으면 개인 발급키를 복구할 수 없습니다. DB는 암호화된 별도 매체에도 백업하세요.
