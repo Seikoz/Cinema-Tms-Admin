@@ -26,7 +26,7 @@ from license_admin.update_credentials import encrypt_update_token
 
 class LicenseAuthorityBootstrapTest(unittest.TestCase):
     def test_admin_project_has_independent_version(self):
-        self.assertEqual(__version__, "1.7.0b1")
+        self.assertEqual(__version__, "1.7.0b2")
 
     def test_vbs_uses_gui_python_with_visible_ime_window_context(self):
         path = Path(__file__).parents[1] / "deployment" / "Cinema-TMS-Admin.vbs"
@@ -170,7 +170,11 @@ class LicenseAuthorityBootstrapTest(unittest.TestCase):
         self.assertIn('text="파일 업데이트", command=self.install_update', source)
         self.assertIn("token = self.authority.load_update_token()", source)
         self.assertIn('check_for_update(APP_VERSION, token)', source)
-        self.assertIn('download_update(release, PROJECT_ROOT / "data" / "updates", token)', source)
+        self.assertIn('release, PROJECT_ROOT / "data" / "updates", token,', source)
+        self.assertIn('window.title("온라인 업데이트")', source)
+        self.assertIn('mode="determinate"', source)
+        self.assertIn("update_online_download_progress", source)
+        self.assertNotIn("비공개 GitHub Release에서 새 버전 확인 중", source)
         self.assertIn('DEFAULT_REPOSITORY = "Seikoz/Cinema-Tms-Updates"', github)
         self.assertIn('CryptProtectData', github)
         self.assertIn('$zip + ".sha256"', builder)

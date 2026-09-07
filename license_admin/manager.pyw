@@ -120,6 +120,10 @@ class LicenseManager(tk.Tk):
         self.expires_on = tk.StringVar(value=(date.today() + timedelta(days=365)).isoformat())
         self.auditorium_limit = tk.StringVar(value="1")
         self.status = tk.StringVar(value="로그인이 필요합니다.")
+        self.online_progress_window = None
+        self.online_progress_message = tk.StringVar(value="")
+        self.online_progress_value = tk.DoubleVar(value=0)
+        self.online_progress_percent = tk.StringVar(value="0%")
         self.request_loaded = False
         self.rebind_supersedes = ""
         self.update_public_key = ""
@@ -280,13 +284,65 @@ class LicenseManager(tk.Tk):
             messagebox.showwarning("라이선스 관리자 업데이트", "관리자 계정만 프로그램을 업데이트할 수 있습니다.", parent=self)
             return
         self.online_update_button.configure(state="disabled")
+        self.show_online_update_progress("업데이트 자격 증명 확인 중")
         try:
             token = self.authority.load_update_token()
         except (GitHubUpdateError, ValueError) as exc:
             self.finish_online_update_error(str(exc))
             return
-        self.status.set("비공개 GitHub Release에서 새 버전 확인 중")
+        self.set_online_update_progress("업데이트 정보 확인 중")
         threading.Thread(target=self.online_update_check_worker, args=(token,), daemon=True).start()
+
+    def show_online_update_progress(self, message: str, value: float | None = None):
+        window = self.online_progress_window
+        if window is None or not window.winfo_exists():
+            window = tk.Toplevel(self)
+            self.online_progress_window = window
+            window.title("온라인 업데이트")
+            window.transient(self)
+            window.resizable(False, False)
+            window.protocol("WM_DELETE_WINDOW", lambda: None)
+            frame = ttk.Frame(window, padding=22)
+            frame.pack(fill="both", expand=True)
+            ttk.Label(frame, text="온라인 업데이트", font=("Malgun Gothic", 13, "bold")).pack(anchor="w")
+            ttk.Label(frame, textvariable=self.online_progress_message).pack(anchor="w", pady=(12, 8))
+            self.online_progress_bar = ttk.Progressbar(
+                frame, variable=self.online_progress_value, maximum=100, length=390,
+                mode="determinate",
+            )
+            self.online_progress_bar.pack(fill="x")
+            ttk.Label(frame, textvariable=self.online_progress_percent, anchor="e").pack(fill="x", pady=(5, 0))
+            window.update_idletasks()
+            width, height = 440, 155
+            x = self.winfo_rootx() + max(0, (self.winfo_width() - width) // 2)
+            y = self.winfo_rooty() + max(0, (self.winfo_height() - height) // 2)
+            window.geometry(f"{width}x{height}+{x}+{y}")
+            window.grab_set()
+        self.set_online_update_progress(message, value)
+
+    def set_online_update_progress(self, message: str, value: float | None = None):
+        self.online_progress_message.set(message)
+        self.online_progress_bar.stop()
+        if value is None:
+            self.online_progress_bar.configure(mode="indeterminate")
+            self.online_progress_bar.start(15)
+            self.online_progress_percent.set("진행 중")
+            return
+        self.online_progress_bar.configure(mode="determinate")
+        value = min(100.0, max(0.0, float(value)))
+        self.online_progress_value.set(value)
+        self.online_progress_percent.set(f"다운로드 {value:.0f}%")
+
+    def close_online_update_progress(self):
+        window = self.online_progress_window
+        self.online_progress_window = None
+        if window is not None and window.winfo_exists():
+            self.online_progress_bar.stop()
+            try:
+                window.grab_release()
+            except tk.TclError:
+                pass
+            window.destroy()
 
     def online_update_check_worker(self, token: str):
         try:
@@ -294,7 +350,7 @@ class LicenseManager(tk.Tk):
         except GitHubAuthenticationRequired as exc:
             self.after(0, lambda message=str(exc): self.retry_online_update_authentication(message))
             return
-        except GitHubUpdateError as exc:
+        except (GitHubUpdateError, OSError, ValueError) as exc:
             self.after(0, lambda message=str(exc): self.finish_online_update_error(message))
             return
         self.after(0, lambda: self.confirm_online_update(release, token))
@@ -306,41 +362,63 @@ class LicenseManager(tk.Tk):
 
     def confirm_online_update(self, release: UpdateRelease | None, token: str):
         if release is None:
+            self.set_online_update_progress("현재 최신 버전을 사용 중입니다.", 100)
+            self.close_online_update_progress()
             self._refresh_permissions()
-            messagebox.showinfo("라이선스 관리자 업데이트", f"현재 v{APP_VERSION}가 최신 버전입니다.", parent=self)
+            messagebox.showinfo("온라인 업데이트", f"현재 v{APP_VERSION}가 최신 버전입니다.", parent=self)
             return
+        self.set_online_update_progress(f"v{release.version} 업데이트 확인 완료")
         detail = f"현재 버전: v{APP_VERSION}\n새 버전: v{release.version}"
         if release.published_at:
             detail += f"\n게시 시각: {release.published_at}"
         if not messagebox.askyesno(
-            "라이선스 관리자 업데이트",
-            detail + "\n\n비공개 GitHub Release에서 검증된 업데이트를 받아 설치하시겠습니까?\n계정, 발급키와 라이선스 이력은 유지됩니다.",
-            parent=self,
+            "온라인 업데이트",
+            detail + "\n\n온라인 업데이트 파일을 받아 설치하시겠습니까?\n계정, 발급키와 라이선스 이력은 유지됩니다.",
+            parent=self.online_progress_window or self,
         ):
+            self.close_online_update_progress()
             self._refresh_permissions()
             return
-        self.status.set(f"v{release.version} 다운로드 및 SHA-256 검증 중")
+        self.set_online_update_progress(f"v{release.version} 업데이트 파일 다운로드 준비 중")
         threading.Thread(target=self.online_update_download_worker, args=(release, token), daemon=True).start()
 
     def online_update_download_worker(self, release: UpdateRelease, token: str):
         try:
-            package = download_update(release, PROJECT_ROOT / "data" / "updates", token)
-        except GitHubUpdateError as exc:
+            package = download_update(
+                release, PROJECT_ROOT / "data" / "updates", token,
+                progress=lambda written, total: self.after(
+                    0, lambda: self.update_online_download_progress(release.version, written, total)
+                ),
+            )
+        except (GitHubUpdateError, OSError, ValueError) as exc:
             self.after(0, lambda message=str(exc): self.finish_online_update_error(message))
             return
-        self.after(0, lambda: self.launch_update_package(package))
+        self.after(0, lambda: self.finish_online_update_download(package))
+
+    def update_online_download_progress(self, version: str, written: int, total: int):
+        ratio = (written / total) if total > 0 else 0
+        percent = ratio * 100
+        downloaded_mb = written / (1024 * 1024)
+        total_mb = total / (1024 * 1024) if total > 0 else 0
+        self.set_online_update_progress(
+            f"v{version} 다운로드 중 · {downloaded_mb:.1f} / {total_mb:.1f} MB", percent
+        )
+
+    def finish_online_update_download(self, package: Path):
+        self.set_online_update_progress("다운로드 및 무결성 검증 완료 · 설치 준비 중")
+        self.after(300, lambda: self.launch_update_package(package))
 
     def finish_online_update_error(self, message: str):
+        self.close_online_update_progress()
         self._refresh_permissions()
-        messagebox.showerror("라이선스 관리자 온라인 업데이트", message, parent=self)
+        messagebox.showerror("온라인 업데이트", message, parent=self)
 
     def launch_update_package(self, package: Path):
         updater = PROJECT_ROOT / "deployment" / "apply-update.ps1"
         powershell = Path(os.environ.get("WINDIR", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
         if not updater.is_file() or not powershell.is_file():
-            messagebox.showerror("라이선스 관리자 업데이트", "업데이트 실행 파일을 찾을 수 없습니다.", parent=self)
+            self.finish_online_update_error("업데이트 실행 파일을 찾을 수 없습니다.")
             return
-        self.authority.logout()
         command = [
             str(powershell), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(updater),
             "-PackagePath", str(package), "-ProjectRoot", str(PROJECT_ROOT),
@@ -349,8 +427,9 @@ class LicenseManager(tk.Tk):
         try:
             subprocess.Popen(command, cwd=PROJECT_ROOT, creationflags=subprocess.CREATE_NO_WINDOW)
         except OSError as exc:
-            messagebox.showerror("라이선스 관리자 업데이트", f"업데이트를 시작하지 못했습니다.\n{exc}", parent=self)
+            self.finish_online_update_error(f"업데이트를 시작하지 못했습니다.\n{exc}")
             return
+        self.authority.logout()
         self.destroy()
 
     def import_existing_authority(self):

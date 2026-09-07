@@ -197,7 +197,7 @@ def load_update_token(path: Path, unprotector=unprotect_secret) -> str:
     return token
 
 
-def download_update(release: UpdateRelease, destination: Path, token: str) -> Path:
+def download_update(release: UpdateRelease, destination: Path, token: str, progress=None) -> Path:
     with _open(Request(release.checksum.api_url, headers=_headers(token, True)), 60) as response:
         checksum_raw = response.read(65537)
         if len(checksum_raw) > 65536:
@@ -211,6 +211,8 @@ def download_update(release: UpdateRelease, destination: Path, token: str) -> Pa
     temporary = target.with_suffix(target.suffix + ".part")
     digest, written = hashlib.sha256(), 0
     try:
+        if progress:
+            progress(0, release.package.size)
         with _open(Request(release.package.api_url, headers=_headers(token, True)), 120) as response, temporary.open("wb") as output:
             while chunk := response.read(1024 * 1024):
                 written += len(chunk)
@@ -218,6 +220,8 @@ def download_update(release: UpdateRelease, destination: Path, token: str) -> Pa
                     raise GitHubUpdateError("업데이트 파일 크기가 허용 범위를 초과했습니다.")
                 digest.update(chunk)
                 output.write(chunk)
+                if progress:
+                    progress(written, release.package.size)
         if written != release.package.size or digest.hexdigest() != expected:
             raise GitHubUpdateError("업데이트 크기 또는 SHA-256 검증에 실패했습니다.")
         temporary.replace(target)

@@ -64,9 +64,15 @@ class GitHubUpdatesTest(unittest.TestCase):
             ReleaseAsset("Cinema-TMS-Admin-Update-1.5.0b2.zip.sha256", "https://api.github.com/assets/2", len(checksum)),
         )
         with tempfile.TemporaryDirectory() as folder:
+            progress = []
             with patch("license_admin.github_updates._open", side_effect=[Response(checksum), Response(package)]):
-                target = download_update(release, Path(folder), "token")
+                target = download_update(
+                    release, Path(folder), "token",
+                    progress=lambda written, total: progress.append((written, total)),
+                )
             self.assertEqual(target.read_bytes(), package)
+            self.assertEqual(progress[0], (0, len(package)))
+            self.assertEqual(progress[-1], (len(package), len(package)))
 
     def test_download_rejects_bad_hash(self):
         package = b"tampered"
@@ -79,6 +85,7 @@ class GitHubUpdatesTest(unittest.TestCase):
             with patch("license_admin.github_updates._open", side_effect=[Response(b"0" * 64), Response(package)]):
                 with self.assertRaises(GitHubUpdateError):
                     download_update(release, Path(folder), "token")
+            self.assertEqual(list(Path(folder).iterdir()), [])
 
 
 if __name__ == "__main__":
